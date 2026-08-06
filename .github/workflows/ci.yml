@@ -72,13 +72,14 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Deploy web to Cloudflare Pages
+      - name: Deploy web to Cloudflare Workers
         if: steps.creds.outputs.configured == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/web/dist --project-name dsrvm-web --branch staging
+          workingDirectory: apps/web
+          command: deploy --env staging
 
       - name: Deploy api to Cloudflare Workers
         if: steps.creds.outputs.configured == 'true'

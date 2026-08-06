@@ -64,8 +64,9 @@ Test runner is Vitest; dev mode uses `tsx watch` in `apps/api`.
 
 ## 6. Deploying
 
-- **Hosting (ADR-004):** Cloudflare. Web frontend -> Cloudflare Pages (`dsrvm-web`).
-  Services -> Cloudflare Workers (`dsrvm-api`, `dsrvm-hr-automation`).
+- **Hosting (ADR-004):** Cloudflare. **Services (web, api, hr-automation) -> Cloudflare
+  Workers** (`dsrvm-web`, `dsrvm-api`, `dsrvm-hr-automation`). **Cloudflare Pages** is used
+  for the static marketing site, which lives in the separate `dsrvmltd` repo.
 - **Staging:** automatic on merge to `main`; CI builds then deploys web/api/hr-automation
   to Cloudflare with `wrangler`. Workers run Fastify under `nodejs_compat`.
 - **Production:** manual promote from staging after smoke tests + CEO sign-off

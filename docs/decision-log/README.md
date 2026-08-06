@@ -59,7 +59,7 @@ Fly.io/container for services.
 ## Decision
 
 - **Web frontend (marketing + client apps):** Cloudflare Pages.
-- **Services (api, hr-automation):** Cloudflare Workers (`nodejs_compat`, deployed via
+- **Services (web, api, hr-automation):** Cloudflare Workers (`nodejs_compat`, deployed via
   `wrangler deploy`).
 - Deployment from CI uses `cloudflare/wrangler-action` with `CLOUDFLARE_API_TOKEN` and
   `CLOUDFLARE_ACCOUNT_ID` GitHub secrets; staging deploys automatically on merge to `main`.
@@ -70,7 +70,8 @@ Fly.io/container for services.
 - Fastify apps run under Workers `nodejs_compat`; Node-only dependencies must be reviewed.
 - Worker CPU/request limits constrain long-running or heavy jobs (BullMQ workers likely stay
   containerised or use Workers Queues instead - revisit in DSRA-7).
-- Marketing site repo `dsrvmltd` deploys to Pages independently of this monorepo.
+- Cloudflare Pages hosts the static marketing site from the separate `dsrvmltd` repo
+  (`dsrvm-web` in this monorepo is a Fastify service and deploys as a Worker, not Pages).
 
 ---
 

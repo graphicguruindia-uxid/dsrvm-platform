@@ -1,4 +1,15 @@
 name = "dsrvm-web"
+main = "dist/index.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = "dist"
+
+[vars]
+NODE_ENV = "production"
+
+[env.staging]
+[vars]
+NODE_ENV = "staging"
+
+[env.production]
+[vars]
+NODE_ENV = "production"
