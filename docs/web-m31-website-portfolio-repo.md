@@ -80,6 +80,19 @@ Files are UTF-8 throughout (no encoding corruption; earlier mojibake was a conso
 ## Follow-ups
 
 1. Rotate the hosting control-panel credential that was previously committed in `CNAME`.
-2. Confirm the EmailJS template recipient is `info@dsrvmltd.co.uk`.
+2. Confirm the live EmailJS dashboard *template* `To Email` field is `info@dsrvmltd.co.uk`
+   (code + setup notes now aligned; dashboard setting is the last link).
 3. Optional GitHub Action: run `npm test` on PRs (static, no build required).
 4. Later: consider a `careerforge` landing surface once the product is deployed.
+
+## Post-release verification (2026-08-06, board localhost)
+
+Board stood up `http://192.168.1.43:8083/` (IIS) for live testing. Verified served bytes
+== committed `be17233` (byte-identical); all 7 pages + robots + sitemap return 200; HR
+Automation/CareerForge content live (services `#hr-automation`, homepage card, JSON-LD);
+all 226 local refs and 13 sitemap URLs resolve 200; `npm test` 8/8.
+
+Follow-up fix pushed as commit `b0f5d2c`: EmailJS setup note in `js/contact.js` pointed the
+template `To Email` at `info@graphicguru.in` — corrected to `info@dsrvmltd.co.uk`;
+`docs/DEPLOYMENT.md` checklist updated; new `.github/workflows/check-site.yml` runs
+`npm test` on PRs/main. Live server picked the JS fix up immediately.
