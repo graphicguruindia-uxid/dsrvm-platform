@@ -1,0 +1,24 @@
+{
+  "name": "@dsrvm/worker-server",
+  "version": "0.1.0",
+  "description": "Run Fastify apps on Cloudflare Workers via a serverFactory stub + fetch adapter",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "prettier --check src",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "fastify": "^5.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

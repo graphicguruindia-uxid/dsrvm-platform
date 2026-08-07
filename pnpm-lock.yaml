@@ -237,6 +237,24 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.20.1)
 
+  packages/worker-server:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      fastify:
+        specifier: ^5.0.0
+        version: 5.11.2
+      prettier:
+        specifier: ^3.0.0
+        version: 3.9.6
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.20.1)
+
 packages:
 
   '@electric-sql/pglite@0.5.4':

@@ -64,16 +64,24 @@ Test runner is Vitest; dev mode uses `tsx watch` in `apps/api`.
 
 ## 6. Deploying
 
-- **Hosting (ADR-004):** Cloudflare. **Services (web, api, hr-automation) -> Cloudflare
-  Workers** (`dsrvm-web`, `dsrvm-api`, `dsrvm-hr-automation`). **Cloudflare Pages** is used
-  for the static marketing site, which lives in the separate `dsrvmltd` repo.
-- **Staging:** automatic on merge to `main`; CI builds then deploys web/api/hr-automation
-  to Cloudflare with `wrangler`. Workers run Fastify under `nodejs_compat`.
-- **Production:** manual promote from staging after smoke tests + CEO sign-off
-  (`wrangler deploy --env production`).
-- **Credentials:** ask the board (local-board/CEO) to provision a Cloudflare API token
-  (Pages + Workers) and add `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` to GitHub repo
-  secrets. The deploy job stays green and skips until those secrets exist.
+> **Decision (ADR-006, accepted 2026-08-07 via board approval 8f511abe): services deploy
+> to a Node host, not Cloudflare Workers.** Fastify's router `find-my-way` compiles route
+> matchers with `new Function`, which the Workers runtime permanently disallows (no
+> `eval`/codegen) — `EvalError: Code generation from strings disallowed for this context`
+> at startup, reproduced by QA under the Workers V8 flag (`scripts/qa-worker.mts`). Fastify 5
+> offers no router substitution hook. Verified against Fastify 5.11.2 + find-my-way 9.7.0.
+
+- **Services (web, api, hr-automation): Node host** (Render/Fly.io/Railway/VPS). All three
+  apps run as plain Node Fastify servers via `apps/*/src/index.ts`
+  (`pnpm dev` / `node dist/index.js`). Baseline is green (build/lint/typecheck/test).
+  **Host target selection is a board ask on DSRA-17** (carries cost implications); the CI
+  `deploy-staging` job is gated on the `DEPLOY_TARGET` repo variable so merges to `main`
+  stay green until a host is chosen and its deploy credentials are provisioned.
+- **Workers-native rewrite (Hono/Itty)** is a tracked follow-up only, not this release.
+- **Cloudflare remains** for the static marketing site (Pages, live at `dsrvm-site.pages.dev`
+  from the `dsrvmltd` repo) and DNS. The `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`
+  secrets and `wrangler.toml` files are retained for future Workers/edge use, but no
+  service deploys to Workers.
 
 ## 7. Definition of Done (DoD)
 
