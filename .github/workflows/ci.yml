@@ -60,6 +60,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Install wrangler globally
+        run: npm install -g wrangler@3.90.0
+
       - name: Check Cloudflare credentials
         id: creds
         run: |
