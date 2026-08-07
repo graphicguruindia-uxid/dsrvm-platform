@@ -64,10 +64,10 @@ jobs:
         run: pnpm build
 
       - name: Deploy web to Node host
-        run: echo "TODO: wire web deploy to ${{ vars.DEPLOY_TARGET }}"
+        run: 'echo "TODO: wire web deploy to ${{ vars.DEPLOY_TARGET }}"'
 
       - name: Deploy api to Node host
-        run: echo "TODO: wire api deploy to ${{ vars.DEPLOY_TARGET }}"
+        run: 'echo "TODO: wire api deploy to ${{ vars.DEPLOY_TARGET }}"'
 
       - name: Deploy hr-automation to Node host
-        run: echo "TODO: wire hr-automation deploy to ${{ vars.DEPLOY_TARGET }}"
+        run: 'echo "TODO: wire hr-automation deploy to ${{ vars.DEPLOY_TARGET }}"'
