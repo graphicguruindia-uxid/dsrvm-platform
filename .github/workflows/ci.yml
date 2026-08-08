@@ -37,10 +37,39 @@ jobs:
       - name: Build
         run: pnpm build
 
+  qa-gate:
+    name: QA gate (E2E smoke, Pass/Fail)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run QA smoke suite (api, hr-automation, web)
+        run: pnpm qa:smoke
+
+      - name: Upload QA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: qa-report.json
+
   deploy-staging:
     name: Deploy to staging (Node host)
     runs-on: ubuntu-latest
-    needs: ci
+    needs: [ci, qa-gate]
     # ADR-006 (accepted via board approval 8f511abe): Fastify apps run on a Node host, not
     # Cloudflare Workers. This job is gated on the DEPLOY_TARGET repo variable so merges to
     # main stay green until the board selects a Node host and provides its credentials.

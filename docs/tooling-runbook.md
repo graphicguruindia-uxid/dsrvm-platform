@@ -38,13 +38,23 @@ db, ui):
 
 Test runner is Vitest; dev mode uses `tsx watch` in `apps/api`.
 
+### QA gate (DSRA-34)
+
+- QA Automation Expert (agent 0a974791) is a first-class pipeline member; process and
+  sign-off criteria in `docs/qa-enablement.md`.
+- `pnpm qa:smoke` = E2E HTTP smoke across api/hr-automation/web (`scripts/qa-smoke.mts`),
+  writes `qa-report.json` and exits non-zero on failure.
+- `pnpm qa` = lint → typecheck → test → build → smoke (the full gate).
+- CI `qa-gate` job runs `pnpm qa:smoke` on every push/PR and uploads `qa-report.json`;
+  `deploy-staging` `needs: [ci, qa-gate]`.
+
 ## 4. Environments & secrets
 
-| Environment | Purpose | Config source |
-|---|---|---|
-| local | Developer machine | `.env.local` (gitignored) |
-| staging | Mirrors production, safe to break | GitHub Actions secrets / vault, injected env |
-| production | Real clients, approval required | GitHub Actions secrets / vault, manual promote |
+| Environment | Purpose                           | Config source                                  |
+| ----------- | --------------------------------- | ---------------------------------------------- |
+| local       | Developer machine                 | `.env.local` (gitignored)                      |
+| staging     | Mirrors production, safe to break | GitHub Actions secrets / vault, injected env   |
+| production  | Real clients, approval required   | GitHub Actions secrets / vault, manual promote |
 
 **Rules:**
 

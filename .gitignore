@@ -30,6 +30,9 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 
+# QA artifacts
+qa-report.json
+
 # Agent-internal context (not part of the repo)
 instructions/
 engineering-hiring-plan.md

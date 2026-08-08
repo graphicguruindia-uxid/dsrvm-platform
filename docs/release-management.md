@@ -6,11 +6,11 @@ Owner: CTO | Status: In progress | Date: 2026-08-06 (updated 2026-08-07)
 
 Go-live of three DSRVM services:
 
-| App | Package | Service | Deploy target |
-|---|---|---|---|
-| Enterprise web reference | `@dsrvm/web-app` (`apps/web`) | Fastify multi-tenant API + admin console + CMS/billing hooks | **Node host** (ADR-006, accepted) |
-| HR automation | `@dsrvm/hr-automation` (`apps/hr-automation`) | Candidate intake + AI screening + human review | **Node host** (ADR-006, accepted) |
-| API | `@dsrvm/api` (`apps/api`) | Health/edge API | **Node host** (ADR-006, accepted) |
+| App                      | Package                                       | Service                                                      | Deploy target                     |
+| ------------------------ | --------------------------------------------- | ------------------------------------------------------------ | --------------------------------- |
+| Enterprise web reference | `@dsrvm/web-app` (`apps/web`)                 | Fastify multi-tenant API + admin console + CMS/billing hooks | **Node host** (ADR-006, accepted) |
+| HR automation            | `@dsrvm/hr-automation` (`apps/hr-automation`) | Candidate intake + AI screening + human review               | **Node host** (ADR-006, accepted) |
+| API                      | `@dsrvm/api` (`apps/api`)                     | Health/edge API                                              | **Node host** (ADR-006, accepted) |
 
 Static marketing site lives in the separate `dsrvmltd` repo (Cloudflare Pages, live at
 `dsrvm-site.pages.dev`).
@@ -37,6 +37,9 @@ credentials are confirmed provisioned in CI; they remain unused for these servic
 
 - [x] Turbo pipeline green for the committed baseline (build/lint/typecheck/test, 40/40).
 - [x] CI runs lint/typecheck/test/build and stays green (deploy job gated, not failing).
+- [x] **QA gate wired (DSRA-34):** CI `qa-gate` job runs `pnpm qa:smoke` (E2E across
+      api/hr-automation/web, 32/32) and uploads `qa-report.json`; it blocks the
+      `deploy-staging` job. QA sign-off is required before production promote (§5).
 - [x] Speculative Worker fetch adapters (`worker.ts`, wrangler `main=dist/worker.js`) reverted;
       apps run as plain Node Fastify servers via `apps/*/src/index.ts`.
 - [x] Local dev (`pnpm dev`) serves all apps as Node servers.
@@ -48,9 +51,12 @@ credentials are confirmed provisioned in CI; they remain unused for these servic
 1. Board selects Node host + provides deploy credentials (or authorizes the free/VPS option).
 2. Set `DEPLOY_TARGET` repo variable; wire the deploy-staging job steps to the host; staging
    smoke tests (`GET /health`, admin console, HR intake+review flow, tenant host resolution).
-3. Provision Postgres (Neon per ADR-005) staging `DATABASE_URL`; run migrations.
-4. Production promote after smoke tests + CEO sign-off.
-5. Governance pre-production items from DSRA-25/26/27/29/30 fold in (candidate notice,
+3. **QA sign-off gate:** QA Automation Expert runs `pnpm qa:smoke` + `pnpm test` on the
+   candidate commit and posts a PASS verdict + `qa-report.json` reference on DSRA-17
+   (see `docs/qa-enablement.md`). No promote without it.
+4. Provision Postgres (Neon per ADR-005) staging `DATABASE_URL`; run migrations.
+5. Production promote after QA sign-off + CEO sign-off.
+6. Governance pre-production items from DSRA-25/26/27/29/30 fold in (candidate notice,
    data-residency/encryption record, retention job, bias gate, telemetry TTL).
 
 ## KPIs (post-go-live, 30 days)
