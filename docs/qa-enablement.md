@@ -54,16 +54,20 @@ Root scripts (run from `_default/`):
 The smoke harness lives at `scripts/qa-smoke.mts` and covers, per app:
 
 - **api**: `GET /health`.
-- **hr-automation**: dashboard, role create (+400 validation), candidate intake with AI
-  screening (+400), list/get, human review approve (+400, +409 unknown), audit trail,
-  telemetry.
+- **hr-automation**: dashboard, role create (+400 validation) + list, candidate intake
+  with AI screening (+400), list/get, status filter, CSV/email import (+empty 400),
+  human review approve (+400, +409 unknown), audit trail, telemetry.
 - **web**: health, dashboard, tenant create (+409 dup host), seeded-owner login (+401
-  bad pw), `/auth/me`, CMS create/publish/list (+401 unauth), usage metering with cost
-  estimate, billing plans + portal, tenant host resolution (+404 unknown), SSO provider
-  list.
+  bad pw), signup (+409 dup email), logout (session invalidated), `/auth/me`, CMS
+  create/publish/list (+401 unauth), usage metering with cost estimate, billing plans +
+  portal, plan change (+400 unknown plan), signed billing webhook (+401 bad sig),
+  admin overview (owner 200, viewer 403, logged-out 401), tenant host resolution (+404
+  unknown), SSO provider list, SSO login redirect + OIDC callback happy path (+401 bad
+  id_token).
 
-Baseline at onboarding: **32/32 smoke, 148/148 unit tests, all turbo tasks green**
-(2026-08-07).
+Baseline at onboarding: **32/32 smoke, 148/148 unit tests** (2026-08-07). Baseline after
+QA coverage extension (DSRA-41): **52/52 smoke, 151/151 unit tests, all turbo tasks
+green** (2026-08-08, commit `ae0f0ed`).
 
 ## 5. How QA reviews shipped slices (before go-live sign-off)
 

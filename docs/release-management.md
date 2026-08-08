@@ -38,7 +38,8 @@ credentials are confirmed provisioned in CI; they remain unused for these servic
 - [x] Turbo pipeline green for the committed baseline (build/lint/typecheck/test, 40/40).
 - [x] CI runs lint/typecheck/test/build and stays green (deploy job gated, not failing).
 - [x] **QA gate wired (DSRA-34):** CI `qa-gate` job runs `pnpm qa:smoke` (E2E across
-      api/hr-automation/web, 32/32) and uploads `qa-report.json`; it blocks the
+      api/hr-automation/web, 32/32 at wiring; extended to 52/52 by QA on DSRA-41) and
+      uploads `qa-report.json`; it blocks the
       `deploy-staging` job. QA sign-off is required before production promote (§5).
 - [x] Speculative Worker fetch adapters (`worker.ts`, wrangler `main=dist/worker.js`) reverted;
       apps run as plain Node Fastify servers via `apps/*/src/index.ts`.

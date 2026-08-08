@@ -1,8 +1,37 @@
+import { createHmac } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildServer as buildApiServer } from "../apps/api/src/server.js";
 import { createReviewerApp } from "../apps/hr-automation/src/app.js";
 import { createWebReferenceApp } from "../apps/web/src/app.js";
+
+const WEBHOOK_SECRET = "smoke-webhook-secret";
+const SSO_CLIENT_ID = "client-123";
+const SSO_SECRET = "smoke-sso-secret";
+
+function b64url(data: string | Buffer): string {
+  return Buffer.from(data).toString("base64url");
+}
+
+function signHs256(
+  header: Record<string, unknown>,
+  payload: Record<string, unknown>,
+  secret: string,
+): string {
+  const input = `${b64url(JSON.stringify(header))}.${b64url(
+    JSON.stringify(payload),
+  )}`;
+  const sig = createHmac("sha256", secret).update(input).digest("base64url");
+  return `${input}.${sig}`;
+}
+
+function webhookSign(secret: string, body: string): string {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const digest = createHmac("sha256", secret)
+    .update(`${timestamp}.${body}`)
+    .digest("hex");
+  return `t=${timestamp},v1=${digest}`;
+}
 
 const startedAt = new Date().toISOString();
 let pass = 0;
@@ -77,6 +106,15 @@ async function main() {
       "POST /api/roles -> 201",
       role.statusCode === 201 && !!role.json().role?.id,
       role.json(),
+    );
+    const roleId = role.json().role?.id as string;
+
+    const roleList = await call(server, { method: "GET", url: "/api/roles" });
+    check(
+      "GET /api/roles -> lists created role",
+      roleList.statusCode === 200 &&
+        roleList.json().roles.some((r: { id: string }) => r.id === roleId),
+      roleList.json(),
     );
 
     const badRole = await call(server, {
@@ -203,12 +241,82 @@ async function main() {
       telemetry.json(),
     );
 
+    const approved = await call(server, {
+      method: "GET",
+      url: "/api/candidates?status=approved",
+    });
+    check(
+      "GET /api/candidates?status=approved -> filter works",
+      approved.statusCode === 200 &&
+        approved
+          .json()
+          .candidates.some((c: { id: string }) => c.id === candidateId),
+      approved.json(),
+    );
+
+    const csvImport = await call(server, {
+      method: "POST",
+      url: "/api/candidates/import",
+      payload: {
+        csv: "name,email,resume text\nAlice Import,alice.import@example.com,QA automation Playwright\nBob Import,bob.import@example.com,Cypress e2e suites",
+        defaultRoleId: roleId,
+      },
+    });
+    check(
+      "POST /api/candidates/import (csv) -> 201 imported 2",
+      csvImport.statusCode === 201 && csvImport.json().result?.imported === 2,
+      csvImport.json(),
+    );
+
+    const emailImport = await call(server, {
+      method: "POST",
+      url: "/api/candidates/import",
+      payload: {
+        email:
+          "From: Carol Import <carol.import@example.com>\nSubject: CV - Carol Import\n\nCarol Import\n5 years test automation, Playwright, CI",
+        defaultRoleId: roleId,
+      },
+    });
+    check(
+      "POST /api/candidates/import (email) -> 201 imported 1",
+      emailImport.statusCode === 201 &&
+        emailImport.json().result?.imported === 1,
+      emailImport.json(),
+    );
+
+    const emptyImport = await call(server, {
+      method: "POST",
+      url: "/api/candidates/import",
+      payload: {},
+    });
+    check(
+      "POST /api/candidates/import (empty) -> 400",
+      emptyImport.statusCode === 400,
+      emptyImport.json(),
+    );
+
     await app.close();
   }
 
   console.log("=== Web reference app (apps/web) ===");
   {
-    const app = createWebReferenceApp();
+    const app = createWebReferenceApp({
+      billingWebhookSecret: WEBHOOK_SECRET,
+      ssoProviders: [
+        {
+          provider: "oidc",
+          name: "google",
+          clientId: SSO_CLIENT_ID,
+          clientSecret: SSO_SECRET,
+          issuer: "https://accounts.google.com",
+          redirectUri: "https://acme.dsrvm.app/api/auth/sso/google/callback",
+          authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+          tokenEndpoint: "https://oauth2.googleapis.com/token",
+          grant: "implicit",
+          defaultRole: "viewer",
+        },
+      ],
+    });
     const { server } = app;
     const health = await call(server, { method: "GET", url: "/health" });
     check(
@@ -414,6 +522,230 @@ async function main() {
       "GET /api/auth/sso -> 200 providers",
       sso.statusCode === 200 && Array.isArray(sso.json().providers),
       sso.json(),
+    );
+
+    const ssoLogin = await call(server, {
+      method: "GET",
+      url: `/api/auth/sso/google/login?tenantId=${tenantId}`,
+    });
+    check(
+      "GET /api/auth/sso/google/login -> 200 redirect + state",
+      ssoLogin.statusCode === 200 &&
+        !!ssoLogin.json().state &&
+        !!ssoLogin.json().redirectUrl,
+      ssoLogin.json(),
+    );
+    const ssoState = ssoLogin.json().state as string;
+    const ssoNonce =
+      new URL(ssoLogin.json().redirectUrl as string).searchParams.get(
+        "nonce",
+      ) ?? "";
+
+    const ssoToken = signHs256(
+      { alg: "HS256", typ: "JWT" },
+      {
+        iss: "https://accounts.google.com",
+        aud: SSO_CLIENT_ID,
+        sub: "google-sso-1",
+        email: "sso.user@acme.dsrvm.app",
+        name: "SSO User",
+        nonce: ssoNonce,
+        iat: Math.floor(Date.now() / 1000) - 60,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      },
+      SSO_SECRET,
+    );
+    const ssoCallbackOk = await call(server, {
+      method: "GET",
+      url: `/api/auth/sso/google/callback?id_token=${encodeURIComponent(
+        ssoToken,
+      )}&state=${encodeURIComponent(ssoState)}`,
+    });
+    check(
+      "GET /api/auth/sso/google/callback (valid id_token) -> 200 user",
+      ssoCallbackOk.statusCode === 200 &&
+        !!ssoCallbackOk.json().token &&
+        ssoCallbackOk.json().identity?.email === "sso.user@acme.dsrvm.app",
+      ssoCallbackOk.json(),
+    );
+
+    const signup = await call(server, {
+      method: "POST",
+      url: "/api/auth/signup",
+      payload: {
+        tenantId,
+        email: "viewer@acme.dsrvm.app",
+        password: "viewer-pass-1",
+        name: "Viewer One",
+        role: "viewer",
+      },
+    });
+    check(
+      "POST /api/auth/signup (viewer) -> 201 token",
+      signup.statusCode === 201 && !!signup.json().token,
+      signup.json(),
+    );
+    const viewerToken = signup.json().token as string;
+
+    const dupSignup = await call(server, {
+      method: "POST",
+      url: "/api/auth/signup",
+      payload: {
+        tenantId,
+        email: "viewer@acme.dsrvm.app",
+        password: "viewer-pass-1",
+        name: "Viewer Duplicate",
+      },
+    });
+    check(
+      "POST /api/auth/signup (dup email) -> 409",
+      dupSignup.statusCode === 409,
+      dupSignup.json(),
+    );
+
+    const logout = await call(server, {
+      method: "POST",
+      url: "/api/auth/logout",
+      headers: { authorization: `Bearer ${viewerToken}` },
+    });
+    check(
+      "POST /api/auth/logout -> 200 ok",
+      logout.statusCode === 200 && logout.json().ok === true,
+      logout.json(),
+    );
+
+    const meAfterLogout = await call(server, {
+      method: "GET",
+      url: "/api/auth/me",
+      headers: { authorization: `Bearer ${viewerToken}` },
+    });
+    check(
+      "GET /api/auth/me (logged out token) -> 401",
+      meAfterLogout.statusCode === 401,
+      meAfterLogout.json(),
+    );
+
+    const planChange = await call(server, {
+      method: "PATCH",
+      url: "/api/billing/plan",
+      headers: { authorization: auth },
+      payload: { plan: "starter" },
+    });
+    check(
+      "PATCH /api/billing/plan -> 200 starter",
+      planChange.statusCode === 200 &&
+        planChange.json().tenant?.plan === "starter",
+      planChange.json(),
+    );
+
+    const badPlan = await call(server, {
+      method: "PATCH",
+      url: "/api/billing/plan",
+      headers: { authorization: auth },
+      payload: { plan: "platinum" },
+    });
+    check(
+      "PATCH /api/billing/plan (unknown plan) -> 400",
+      badPlan.statusCode === 400,
+      badPlan.json(),
+    );
+
+    const webhookBody = JSON.stringify({
+      id: "evt_sub_1",
+      type: "customer.subscription.updated",
+      createdAt: new Date().toISOString(),
+      data: { tenantId, plan: "enterprise" },
+    });
+    const webhookSig = webhookSign(WEBHOOK_SECRET, webhookBody);
+    const webhook = await call(server, {
+      method: "POST",
+      url: "/api/billing/webhooks",
+      headers: {
+        "content-type": "application/json",
+        "x-billing-signature": webhookSig,
+      },
+      payload: webhookBody,
+    });
+    check(
+      "POST /api/billing/webhooks (valid sig) -> 200 handled",
+      webhook.statusCode === 200 && webhook.json().handled === true,
+      webhook.json(),
+    );
+
+    const badSig = await call(server, {
+      method: "POST",
+      url: "/api/billing/webhooks",
+      headers: {
+        "content-type": "application/json",
+        "x-billing-signature": "t=0,v1=deadbeef",
+      },
+      payload: webhookBody,
+    });
+    check(
+      "POST /api/billing/webhooks (bad sig) -> 401",
+      badSig.statusCode === 401,
+      badSig.json(),
+    );
+
+    const adminOverview = await call(server, {
+      method: "GET",
+      url: "/api/admin/overview",
+      headers: { authorization: auth },
+    });
+    check(
+      "GET /api/admin/overview (owner) -> 200 tenants",
+      adminOverview.statusCode === 200 &&
+        typeof adminOverview.json().tenants === "number" &&
+        adminOverview.json().tenants >= 1,
+      adminOverview.json(),
+    );
+
+    const adminDenied = await call(server, {
+      method: "GET",
+      url: "/api/admin/overview",
+      headers: { authorization: `Bearer ${viewerToken}` },
+    });
+    check(
+      "GET /api/admin/overview (logged-out viewer) -> 401",
+      adminDenied.statusCode === 401,
+      adminDenied.json(),
+    );
+
+    const viewerLogin = await call(server, {
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        tenantId,
+        email: "viewer@acme.dsrvm.app",
+        password: "viewer-pass-1",
+      },
+    });
+    check(
+      "POST /api/auth/login (viewer re-login) -> 200 token",
+      viewerLogin.statusCode === 200 && !!viewerLogin.json().token,
+      viewerLogin.json(),
+    );
+    const viewerSessionToken = viewerLogin.json().token as string;
+
+    const adminViewerDenied = await call(server, {
+      method: "GET",
+      url: "/api/admin/overview",
+      headers: { authorization: `Bearer ${viewerSessionToken}` },
+    });
+    check(
+      "GET /api/admin/overview (viewer role) -> 403",
+      adminViewerDenied.statusCode === 403,
+      adminViewerDenied.json(),
+    );
+
+    const ssoCallback = await call(server, {
+      method: "GET",
+      url: `/api/auth/sso/google/callback?id_token=malformed&state=${ssoState}`,
+    });
+    check(
+      "GET /api/auth/sso/google/callback (bad id_token) -> 401",
+      ssoCallback.statusCode === 401,
+      ssoCallback.json(),
     );
 
     await app.close();
