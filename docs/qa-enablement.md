@@ -67,7 +67,7 @@ The smoke harness lives at `scripts/qa-smoke.mts` and covers, per app:
 
 Baseline at onboarding: **32/32 smoke, 148/148 unit tests** (2026-08-07). Baseline after
 QA coverage extension (DSRA-41): **52/52 smoke, 151/151 unit tests, all turbo tasks
-green** (2026-08-08, commit `ae0f0ed`).
+green** (2026-08-08, commit `f78375e`, CI run 31247829624).
 
 ## 5. How QA reviews shipped slices (before go-live sign-off)
 
