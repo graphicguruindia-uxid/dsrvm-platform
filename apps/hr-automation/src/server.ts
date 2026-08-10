@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { HrService } from "@dsrvm/hr";
 import type { CandidateIngestor } from "@dsrvm/hr";
 import type { TelemetryReport } from "@dsrvm/telemetry";
+import { candidateAiNotice } from "@dsrvm/hr";
 import { dashboardHtml } from "./dashboard.js";
 
 export interface ReviewerTelemetry {
@@ -85,7 +86,10 @@ export function buildReviewerServer(
       telemetry?.counter("pipeline.candidate.screened", 1, {
         recommendation: screened.screening?.recommendation ?? "needs_review",
       });
-      return reply.code(201).send({ candidate: screened });
+      return reply.code(201).send({
+        candidate: screened,
+        notice: candidateAiNotice(),
+      });
     } catch (error) {
       return reply.code(404).send({
         error: error instanceof Error ? error.message : String(error),
@@ -170,6 +174,10 @@ export function buildReviewerServer(
   });
 
   server.get("/api/audit", async () => ({ events: await hr.auditLog() }));
+
+  server.post("/api/retention/cleanup", async () => ({
+    counts: await hr.retentionCleanup(),
+  }));
 
   server.get("/api/telemetry", async () =>
     telemetry ? telemetry.report() : { telemetry: "disabled" },

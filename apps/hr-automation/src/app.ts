@@ -12,10 +12,12 @@ import {
   createInMemoryStore,
   createOutboxDispatcher,
   createPostgresStore,
+  createRetentionCleaner,
   createScreeningEngine,
 } from "@dsrvm/hr";
 import type { Store } from "@dsrvm/hr";
 import type { OutboxDispatcher } from "@dsrvm/hr";
+import type { RetentionCleaner } from "@dsrvm/hr";
 import {
   MetricsRegistry,
   createUsageTracker,
@@ -31,6 +33,8 @@ import {
 
 export type ProviderKind = "demo" | "anthropic" | "openai" | "fake";
 
+export const DEFAULT_TELEMETRY_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
 export interface ReviewerAppOptions {
   provider?: ProviderKind;
   anthropicApiKey?: string;
@@ -39,11 +43,13 @@ export interface ReviewerAppOptions {
   signal?: AbortSignal;
   now?: () => Date;
   logger?: (message: string) => void;
+  telemetryTtlMs?: number;
 }
 
 export interface ReviewerApp extends ReviewerServer {
   store: Store;
   dispatcher: OutboxDispatcher | null;
+  retention: RetentionCleaner | null;
   telemetry: () => TelemetryReport;
   close: () => Promise<void>;
 }
@@ -52,8 +58,9 @@ export function createReviewerApp(
   options: ReviewerAppOptions = {},
 ): ReviewerApp {
   const now = options.now ?? (() => new Date());
-  const registry = new MetricsRegistry({ now });
-  const usage = createUsageTracker({ now });
+  const ttlMs = options.telemetryTtlMs ?? DEFAULT_TELEMETRY_TTL_MS;
+  const registry = new MetricsRegistry({ now, ttlMs });
+  const usage = createUsageTracker({ now, ttlMs });
   const gateway = trackGatewayUsage(buildGateway(options), usage, {
     task: "screening",
   });
@@ -70,13 +77,28 @@ export function createReviewerApp(
     ? createOutboxDispatcher({
         outbox: store.outbox,
         handler: async (event) => {
-          const payload = event.payload as { email?: string; name?: string };
+          const payload = event.payload as {
+            email?: string;
+            name?: string;
+            notice?: { version?: string };
+          };
+          const notice = payload.notice?.version
+            ? ` (ai-notice ${payload.notice.version})`
+            : "";
           log(
-            `outbox[${event.type}] dispatched for ${payload.name ?? "?"} <${payload.email ?? "?"}>`,
+            `outbox[${event.type}] dispatched for ${payload.name ?? "?"} <${payload.email ?? "?"}>${notice}`,
           );
         },
         pollIntervalMs: 500,
         signal: options.signal,
+      })
+    : null;
+  const retention = options.signal
+    ? createRetentionCleaner({
+        service: hr,
+        pollIntervalMs: 60 * 60 * 1000,
+        signal: options.signal,
+        logger: log,
       })
     : null;
 
@@ -90,9 +112,11 @@ export function createReviewerApp(
     hr,
     store,
     dispatcher,
+    retention,
     telemetry: () => telemetry.report(),
     close: async () => {
       dispatcher?.stop();
+      retention?.stop();
       await closeStore();
       await server.close();
     },

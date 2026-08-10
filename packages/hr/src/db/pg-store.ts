@@ -81,6 +81,10 @@ export class PgCandidateStore implements CandidateStore {
       throw new Error(`candidate "${candidate.id}" not found`);
     }
   }
+
+  async remove(id: string): Promise<void> {
+    await this.db.delete(candidates).where(eq(candidates.id, id));
+  }
 }
 
 export class PgAuditStore implements AuditStore {
@@ -96,6 +100,18 @@ export class PgAuditStore implements AuditStore {
       .from(auditEvents)
       .orderBy(asc(auditEvents.at));
     return rows.map(rowToAuditEvent);
+  }
+
+  async anonymizeBefore(cutoff: string): Promise<number> {
+    const rows = await this.db
+      .update(auditEvents)
+      .set({
+        candidateId: null,
+        detail: { anonymized: true },
+      })
+      .where(lt(auditEvents.at, cutoff))
+      .returning({ id: auditEvents.id });
+    return rows.length;
   }
 }
 
@@ -145,6 +161,14 @@ export class PgOutboxStore implements ClaimableOutboxStore {
       .update(outboxEvents)
       .set({ claimedUntil: null })
       .where(eq(outboxEvents.id, id));
+  }
+
+  async expireBefore(cutoff: string): Promise<number> {
+    const rows = await this.db
+      .delete(outboxEvents)
+      .where(lt(outboxEvents.at, cutoff))
+      .returning({ id: outboxEvents.id });
+    return rows.length;
   }
 }
 

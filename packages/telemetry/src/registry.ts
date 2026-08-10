@@ -15,33 +15,43 @@ interface HistogramState {
 export interface MetricsRegistryOptions {
   sink?: TelemetrySink | null;
   now?: () => Date;
+  ttlMs?: number;
 }
 
 export class MetricsRegistry {
   private readonly sink: TelemetrySink | null;
   private readonly now: () => Date;
+  private readonly ttlMs: number;
   private readonly counters = new Map<string, number>();
   private readonly gauges = new Map<string, number>();
   private readonly histograms = new Map<string, HistogramState>();
+  private readonly lastWrite = new Map<string, number>();
 
   constructor(options: MetricsRegistryOptions = {}) {
     this.sink = options.sink ?? null;
     this.now = options.now ?? (() => new Date());
+    this.ttlMs = options.ttlMs ?? 0;
   }
 
   counter(name: string, by = 1, tags?: Record<string, string>): void {
     const key = metricKey(name, tags);
+    this.evictExpired();
     this.counters.set(key, (this.counters.get(key) ?? 0) + by);
+    this.lastWrite.set(key, this.now().getTime());
     this.emit("counter", name, this.counters.get(key) ?? 0, tags);
   }
 
   gauge(name: string, value: number, tags?: Record<string, string>): void {
-    this.gauges.set(metricKey(name, tags), value);
+    const key = metricKey(name, tags);
+    this.evictExpired();
+    this.gauges.set(key, value);
+    this.lastWrite.set(key, this.now().getTime());
     this.emit("gauge", name, value, tags);
   }
 
   histogram(name: string, value: number, tags?: Record<string, string>): void {
     const key = metricKey(name, tags);
+    this.evictExpired();
     const state = this.histograms.get(key) ?? {
       sum: 0,
       count: 0,
@@ -53,15 +63,30 @@ export class MetricsRegistry {
     state.min = state.min === null ? value : Math.min(state.min, value);
     state.max = state.max === null ? value : Math.max(state.max, value);
     this.histograms.set(key, state);
+    this.lastWrite.set(key, this.now().getTime());
     this.emit("histogram", name, value, tags);
   }
 
   snapshot(): RegistrySnapshot {
+    this.evictExpired();
     return {
       counters: mapToRecord(this.counters),
       gauges: mapToRecord(this.gauges),
       histograms: mapToHistograms(this.histograms),
     };
+  }
+
+  private evictExpired(): void {
+    if (this.ttlMs <= 0) return;
+    const cutoff = this.now().getTime() - this.ttlMs;
+    for (const [key, lastWrite] of this.lastWrite) {
+      if (lastWrite < cutoff) {
+        this.lastWrite.delete(key);
+        this.counters.delete(key);
+        this.gauges.delete(key);
+        this.histograms.delete(key);
+      }
+    }
   }
 
   private emit(

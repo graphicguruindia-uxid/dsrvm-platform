@@ -95,8 +95,10 @@ describe("reviewer server", () => {
     expect(res.json().candidate.review.note).toBe("Looks strong");
 
     const pending = await app.hr.pendingOutbox();
-    expect(pending).toHaveLength(1);
-    expect(pending[0]?.type).toBe("candidate.approved");
+    expect(pending.map((event) => event.type)).toContain("candidate.approved");
+    expect(pending.map((event) => event.type)).toContain(
+      "candidate.acknowledged",
+    );
 
     const events = await app.hr.auditLog();
     expect(events.map((e) => e.action)).toContain("candidate.reviewed");
@@ -114,7 +116,7 @@ describe("reviewer server", () => {
     expect(res.json().candidate.status).toBe("rejected");
 
     const pending = await app.hr.pendingOutbox();
-    expect(pending[0]?.type).toBe("candidate.rejected");
+    expect(pending.map((event) => event.type)).toContain("candidate.rejected");
     await app.close();
   });
 
@@ -222,6 +224,114 @@ describe("reviewer server", () => {
     const candidates = await app.hr.listCandidates();
     expect(candidates).toHaveLength(3);
     expect(candidates.map((c) => c.email)).toContain("alan@example.com");
+    await app.close();
+  });
+
+  it("exposes the DSRA-27 transparency notice at application confirmation", async () => {
+    const { app, candidate } = await createRoleAndCandidate();
+    const createRes = await app.server.inject({
+      method: "POST",
+      url: "/api/candidates",
+      payload: {
+        roleId: candidate.roleId,
+        name: "Grace Hopper",
+        email: "grace@example.com",
+        resumeText: "Cobol and TypeScript.",
+      },
+    });
+    expect(createRes.statusCode).toBe(201);
+    const created = createRes.json();
+    expect(created.notice).toBeDefined();
+    expect(created.notice.version).toBe("v1");
+    expect(created.notice.text).toContain("A human reviewer always makes");
+
+    const outbox = await app.hr.pendingOutbox();
+    const ack = outbox.find((event) => event.type === "candidate.acknowledged");
+    expect(ack).toBeDefined();
+    expect(
+      (ack?.payload as { notice?: { version?: string } }).notice?.version,
+    ).toBe("v1");
+
+    const audit = await app.hr.auditLog();
+    expect(
+      audit.some(
+        (event) =>
+          event.action === "candidate.ai_notice" &&
+          event.candidateId === created.candidate.id,
+      ),
+    ).toBe(true);
+    await app.close();
+  });
+
+  it("keeps the transparency notice on every status email (no bypass)", async () => {
+    const { app, candidate } = await createRoleAndCandidate();
+    const res = await app.server.inject({
+      method: "POST",
+      url: `/api/candidates/${candidate.id}/review`,
+      payload: { approved: true, reviewer: "reviewer@dsrvm" },
+    });
+    expect(res.statusCode).toBe(200);
+
+    const outbox = await app.hr.pendingOutbox();
+    for (const event of outbox) {
+      expect(
+        (event.payload as { notice?: { version?: string } }).notice?.version,
+      ).toBe("v1");
+    }
+    await app.close();
+  });
+
+  it("covers imported candidates with the notice too (no bypass via ingest)", async () => {
+    const app = build();
+    const roleRes = await app.server.inject({
+      method: "POST",
+      url: "/api/roles",
+      payload: { title: "Engineer", requirements: ["TypeScript"] },
+    });
+    const roleId = roleRes.json().role.id;
+
+    const csvRes = await app.server.inject({
+      method: "POST",
+      url: "/api/candidates/import",
+      payload: {
+        csv: "name,email,resume\nImport One,import1@example.com,TypeScript\nImport Two,import2@example.com,Python",
+        defaultRoleId: roleId,
+      },
+    });
+    expect(csvRes.statusCode).toBe(201);
+    expect(csvRes.json().result.imported).toBe(2);
+
+    const outbox = await app.hr.pendingOutbox();
+    const acks = outbox.filter(
+      (event) => event.type === "candidate.acknowledged",
+    );
+    expect(acks).toHaveLength(2);
+    for (const ack of acks) {
+      expect(
+        (ack.payload as { notice?: { version?: string } }).notice?.version,
+      ).toBe("v1");
+    }
+
+    const audit = await app.hr.auditLog();
+    expect(
+      audit.filter((event) => event.action === "candidate.ai_notice"),
+    ).toHaveLength(2);
+    await app.close();
+  });
+
+  it("exposes the G6 retention cleanup endpoint", async () => {
+    const app = build();
+    const res = await app.server.inject({
+      method: "POST",
+      url: "/api/retention/cleanup",
+    });
+    expect(res.statusCode).toBe(200);
+    const counts = res.json().counts;
+    expect(counts).toMatchObject({
+      candidatesDeleted: 0,
+      auditAnonymized: 0,
+      outboxExpired: 0,
+    });
     await app.close();
   });
 

@@ -2,7 +2,7 @@
 
 Version: Draft v1 | Date: 2026-08-07 | Owner: AI Governance Officer (b170f5ca)
 Linked: DSRA-27 (deliverable), DSRA-26 (DPIA control), DSRA-25 (G10), DSRA-20
-Status: Draft - wording to be aligned with web copy (DSRA-16) and placed in the HR flow by CTO
+Status: Draft - wording to be aligned with web copy (DSRA-16). **Placement in the HR flow: implemented 2026-08-10** - notice wired into `@dsrvm/hr` at application confirmation (`candidate.acknowledged` outbox + `candidate.ai_notice` audit at `pending_screening`) and included in every status email payload (ack/approved/rejected). No-bypass for all intake paths (API create + CSV/email ingest). Pre-flight checks in `scripts/qa-smoke.mts`.
 Compliance: GDPR Art 13/14, Art 22(3); EU AI Act Art 13/50; EEO best practice
 
 ## Purpose

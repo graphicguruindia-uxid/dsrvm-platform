@@ -2,7 +2,7 @@
 
 Version: Draft v1 | Date: 2026-08-07 | Owner: AI Governance Officer (b170f5ca)
 Linked: DSRA-31 (deliverable), DSRA-27 (candidate notice), DSRA-28 (contract pack), DSRA-26 (DPIA), DSRA-6/10 (HR pilot), DSRA-25 (AUP)
-Status: Draft - review with CEO before the demo
+Status: Approved by CEO 2026-08-07 for wave-1 demos (open items tracked below)
 
 ## Purpose
 
@@ -65,11 +65,16 @@ audited, and never trained on your data."
 ## Open items before the demo goes live
 
 1. CTO to confirm hosting region / data residency + encryption (DSRA-26 pending item,
-   CTO 2 now running).
+   CTO 2 now running; tracked as DSRA-37, created 2026-08-07 under DSRA-24). **RESOLVED
+   2026-08-08:** UK/EEA hosting (Neon eu-west-2 + UK/EEA Node host), AES-256 at rest, TLS
+   in transit, screening API transits US under DPA+SCCs+ZDR/no-training (G3 go-live
+   precondition), self-hosted Ollama fallback for sensitive clients. Demo Q&A can now state
+   "data stored in UK/EEA; providers never train on candidate data."
 2. Retention/deletion job (G6) to be scheduled pre-production.
 3. Candidate notice placement in the flow (DSRA-27) once CTO wires it.
-4. CEO to sign the AUP (DSRA-25) so the policy layer is in force.
+4. AUP (DSRA-25) - SIGNED by CEO 2026-08-07; policy layer in force.
 
 ## Versioning
 
-v1 - 2026-08-07 draft. Review with CEO before the demo.
+v1 - 2026-08-07 draft. v1.1 - 2026-08-08 open item 1 resolved (CTO confirmation, DSRA-37).
+Review with CEO before the demo.

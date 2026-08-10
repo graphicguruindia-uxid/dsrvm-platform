@@ -9,6 +9,9 @@ const app = createReviewerApp({
   provider,
   databaseUrl: process.env.DATABASE_URL,
   signal,
+  telemetryTtlMs: process.env.TELEMETRY_TTL_MS
+    ? Number(process.env.TELEMETRY_TTL_MS)
+    : undefined,
 });
 
 if (process.env.SEED_DEMO === "1") {
@@ -21,6 +24,9 @@ if (process.env.SEED_DEMO === "1") {
 await app.server.listen({ port, host: "0.0.0.0" });
 if (app.dispatcher) {
   await app.dispatcher.start();
+}
+if (app.retention) {
+  await app.retention.start();
 }
 console.log(`HR automation reviewer listening on http://0.0.0.0:${port}`);
 

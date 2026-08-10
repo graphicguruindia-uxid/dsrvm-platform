@@ -79,6 +79,7 @@ export interface UsageTrackerOptions {
   pricing?: PricingTable;
   sink?: TelemetrySink | null;
   now?: () => Date;
+  ttlMs?: number;
 }
 
 export interface UsageTracker {
@@ -101,7 +102,18 @@ export function createUsageTracker(
   const pricing = options.pricing ?? DEFAULT_PRICING;
   const sink = options.sink ?? null;
   const now = options.now ?? (() => new Date());
+  const ttlMs = options.ttlMs ?? 0;
   const records: UsageRecord[] = [];
+
+  function evictExpired(): void {
+    if (ttlMs <= 0) return;
+    const cutoff = now().getTime() - ttlMs;
+    for (let index = records.length - 1; index >= 0; index -= 1) {
+      if (Date.parse(records[index]!.at) < cutoff) {
+        records.splice(index, 1);
+      }
+    }
+  }
 
   return {
     record(usage, tags) {
@@ -121,6 +133,7 @@ export function createUsageTracker(
         tags,
         at: now().toISOString(),
       };
+      evictExpired();
       records.push(record);
       if (sink) {
         sink.add({
@@ -133,9 +146,11 @@ export function createUsageTracker(
       }
     },
     records() {
+      evictExpired();
       return [...records];
     },
     snapshot() {
+      evictExpired();
       return aggregate(records);
     },
   };

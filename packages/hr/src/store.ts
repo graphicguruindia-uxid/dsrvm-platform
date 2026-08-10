@@ -11,6 +11,7 @@ export interface CandidateStore {
   get(id: string): Promise<Candidate | null>;
   list(): Promise<Candidate[]>;
   update(candidate: Candidate): Promise<void>;
+  remove(id: string): Promise<void>;
 }
 
 export interface RoleStore {
@@ -22,12 +23,14 @@ export interface RoleStore {
 export interface AuditStore {
   append(event: AuditEvent): Promise<void>;
   list(): Promise<AuditEvent[]>;
+  anonymizeBefore(cutoff: string): Promise<number>;
 }
 
 export interface OutboxStore {
   enqueue(event: OutboxEvent): Promise<void>;
   pending(): Promise<OutboxEvent[]>;
   markDispatched(id: string): Promise<void>;
+  expireBefore(cutoff: string): Promise<number>;
 }
 
 export interface ClaimableOutboxStore extends OutboxStore {
@@ -63,6 +66,10 @@ export class InMemoryCandidateStore implements CandidateStore {
     }
     this.rows.set(candidate.id, candidate);
   }
+
+  async remove(id: string): Promise<void> {
+    this.rows.delete(id);
+  }
 }
 
 export class InMemoryRoleStore implements RoleStore {
@@ -91,6 +98,18 @@ export class InMemoryAuditStore implements AuditStore {
   async list(): Promise<AuditEvent[]> {
     return [...this.rows];
   }
+
+  async anonymizeBefore(cutoff: string): Promise<number> {
+    let anonymized = 0;
+    for (const event of this.rows) {
+      if (event.at < cutoff) {
+        event.candidateId = null;
+        event.detail = { anonymized: true };
+        anonymized += 1;
+      }
+    }
+    return anonymized;
+  }
 }
 
 export class InMemoryOutboxStore implements ClaimableOutboxStore {
@@ -113,6 +132,18 @@ export class InMemoryOutboxStore implements ClaimableOutboxStore {
       this.rows.set(id, { ...event, dispatchedAt: new Date().toISOString() });
       this.claims.delete(id);
     }
+  }
+
+  async expireBefore(cutoff: string): Promise<number> {
+    let expired = 0;
+    for (const [id, event] of this.rows) {
+      if (event.at < cutoff) {
+        this.rows.delete(id);
+        this.claims.delete(id);
+        expired += 1;
+      }
+    }
+    return expired;
   }
 
   async claimForDispatch(id: string, leaseUntil: string): Promise<boolean> {

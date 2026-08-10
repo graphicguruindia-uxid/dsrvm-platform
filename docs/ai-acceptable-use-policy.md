@@ -1,6 +1,6 @@
 # DSRVM Ltd - AI Acceptable Use Policy (AUP) - Draft v1
 
-Owner: AI Governance Officer (b170f5ca) | Status: Draft - pending CEO review | Date: 2026-08-07
+Owner: AI Governance Officer (b170f5ca) | Status: Signed by CEO 2026-08-07 (effective immediately) | Date: 2026-08-07
 Linked: DSRA-20, DSRA-25 | Applies to: all DSRVM staff, agents, contractors, and AI tooling
 
 ## 1. Purpose & scope

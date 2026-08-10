@@ -146,6 +146,34 @@ async function main() {
     );
     const candidateId = candJson.candidate?.id;
 
+    check(
+      "DSRA-27: POST /api/candidates returns the AI transparency notice",
+      candJson.notice?.version === "v1" &&
+        typeof candJson.notice?.text === "string" &&
+        candJson.notice.text.includes("A human reviewer always makes"),
+      candJson,
+    );
+
+    const ackOutbox = await app.hr.pendingOutbox();
+    const ackEvent = ackOutbox.find((e) => e.type === "candidate.acknowledged");
+    check(
+      "DSRA-27/R6: candidate.acknowledged outbox event carries the notice",
+      !!ackEvent && ackEvent.payload?.notice?.version === "v1",
+      ackOutbox,
+    );
+
+    const auditAfterCreate = await app.hr.auditLog();
+    check(
+      "DSRA-27/R6: candidate.ai_notice audit event at pending_screening",
+      auditAfterCreate.some(
+        (e) =>
+          e.action === "candidate.ai_notice" &&
+          e.candidateId === candidateId &&
+          e.detail?.disclosedAt === "pending_screening",
+      ),
+      auditAfterCreate,
+    );
+
     const badCand = await call(server, {
       method: "POST",
       url: "/api/candidates",
@@ -197,6 +225,19 @@ async function main() {
       review.json(),
     );
 
+    const outboxAfterReview = await app.hr.pendingOutbox();
+    check(
+      "DSRA-27/AUP4: every status email (ack + approved) carries the notice",
+      outboxAfterReview.length >= 2 &&
+        outboxAfterReview.every(
+          (e) =>
+            e.type === "candidate.acknowledged" ||
+            e.type === "candidate.approved",
+        ) &&
+        outboxAfterReview.every((e) => e.payload?.notice?.version === "v1"),
+      outboxAfterReview,
+    );
+
     const badReview = await call(server, {
       method: "POST",
       url: `/api/candidates/${candidateId}/review`,
@@ -241,6 +282,20 @@ async function main() {
       telemetry.json(),
     );
 
+    const retention = await call(server, {
+      method: "POST",
+      url: "/api/retention/cleanup",
+    });
+    const retentionCounts = retention.json().counts;
+    check(
+      "G6: POST /api/retention/cleanup -> 200 counts",
+      retention.statusCode === 200 &&
+        typeof retentionCounts?.candidatesDeleted === "number" &&
+        typeof retentionCounts?.auditAnonymized === "number" &&
+        typeof retentionCounts?.outboxExpired === "number",
+      retention.json(),
+    );
+
     const approved = await call(server, {
       method: "GET",
       url: "/api/candidates?status=approved",
@@ -282,6 +337,26 @@ async function main() {
       emailImport.statusCode === 201 &&
         emailImport.json().result?.imported === 1,
       emailImport.json(),
+    );
+
+    const outboxAfterImport = await app.hr.pendingOutbox();
+    const importAcks = outboxAfterImport.filter(
+      (e) => e.type === "candidate.acknowledged",
+    );
+    const auditAfterImport = await app.hr.auditLog();
+    const importedNoticeAudits = auditAfterImport.filter(
+      (e) =>
+        e.action === "candidate.ai_notice" && e.candidateId !== candidateId,
+    );
+    check(
+      "DSRA-27/AUP4 no-bypass: imported candidates get ack email + notice audit",
+      importAcks.length >= 4 &&
+        importAcks.every((e) => e.payload?.notice?.version === "v1") &&
+        importedNoticeAudits.length === 3,
+      {
+        importAcks: importAcks.length,
+        importedNoticeAudits: importedNoticeAudits.length,
+      },
     );
 
     const emptyImport = await call(server, {

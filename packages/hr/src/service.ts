@@ -9,11 +9,30 @@ import type {
 } from "./types.js";
 import type { ScreeningEngine } from "./screening.js";
 import type { Store } from "./store.js";
+import { candidateAiNotice } from "./notice.js";
 
 export interface HrServiceOptions {
   store: Store;
   screeningEngine: ScreeningEngine;
   now?: () => Date;
+}
+
+export interface RetentionSchedule {
+  candidatesMs: number;
+  auditMs: number;
+  outboxMs: number;
+}
+
+export const DEFAULT_RETENTION_SCHEDULE: RetentionSchedule = {
+  candidatesMs: 6 * 30 * 24 * 60 * 60 * 1000,
+  auditMs: 2 * 365 * 24 * 60 * 60 * 1000,
+  outboxMs: 90 * 24 * 60 * 60 * 1000,
+};
+
+export interface RetentionCleanupCounts {
+  candidatesDeleted: number;
+  auditAnonymized: number;
+  outboxExpired: number;
 }
 
 export class HrService {
@@ -79,6 +98,27 @@ export class HrService {
         roleId: candidate.roleId,
       }),
     );
+    const notice = candidateAiNotice();
+    await this.store.audit.append(
+      this.auditEvent(candidate.id, "candidate.ai_notice", {
+        version: notice.version,
+        disclosedAt: "pending_screening",
+      }),
+    );
+    await this.store.outbox.enqueue({
+      id: randomUUID(),
+      type: "candidate.acknowledged",
+      candidateId: candidate.id,
+      payload: {
+        candidateId: candidate.id,
+        name: candidate.name,
+        email: candidate.email,
+        roleId: candidate.roleId,
+        notice,
+      },
+      at: timestamp,
+      dispatchedAt: null,
+    });
     return candidate;
   }
 
@@ -150,6 +190,7 @@ export class HrService {
         email: candidate.email,
         roleId: candidate.roleId,
         approved: input.approved,
+        notice: candidateAiNotice(),
       },
       at: timestamp,
       dispatchedAt: null,
@@ -187,6 +228,32 @@ export class HrService {
       dispatched += 1;
     }
     return dispatched;
+  }
+
+  async retentionCleanup(
+    schedule: RetentionSchedule = DEFAULT_RETENTION_SCHEDULE,
+  ): Promise<RetentionCleanupCounts> {
+    const nowMs = this.now().getTime();
+    const outboxCutoff = new Date(nowMs - schedule.outboxMs).toISOString();
+    const auditCutoff = new Date(nowMs - schedule.auditMs).toISOString();
+    const candidateCutoff = new Date(
+      nowMs - schedule.candidatesMs,
+    ).toISOString();
+
+    const outboxExpired = await this.store.outbox.expireBefore(outboxCutoff);
+    const auditAnonymized = await this.store.audit.anonymizeBefore(auditCutoff);
+
+    let candidatesDeleted = 0;
+    const candidates = await this.store.candidates.list();
+    for (const candidate of candidates) {
+      const decidedAt = candidate.review?.decidedAt;
+      if (decidedAt && decidedAt < candidateCutoff) {
+        await this.store.candidates.remove(candidate.id);
+        candidatesDeleted += 1;
+      }
+    }
+
+    return { candidatesDeleted, auditAnonymized, outboxExpired };
   }
 
   private async requireCandidate(id: string): Promise<Candidate> {

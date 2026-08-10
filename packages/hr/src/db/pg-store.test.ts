@@ -137,20 +137,30 @@ describe("PgStore persistence (pglite)", () => {
     expect(audit.map((event) => event.action)).toEqual([
       "role.created",
       "candidate.created",
+      "candidate.ai_notice",
       "candidate.screened",
       "candidate.reviewed",
     ]);
 
     const pending = await service.pendingOutbox();
-    expect(pending).toHaveLength(1);
-    expect(pending[0]?.type).toBe("candidate.approved");
-    expect(pending[0]?.payload).toEqual({
+    expect(pending.map((event) => event.type)).toEqual([
+      "candidate.acknowledged",
+      "candidate.approved",
+    ]);
+    const approvedEvent = pending.find(
+      (event) => event.type === "candidate.approved",
+    )!;
+    expect(approvedEvent.payload).toMatchObject({
       candidateId: candidate.id,
       name: "Ada Lovelace",
       email: "ada@example.com",
       roleId: role.id,
       approved: true,
     });
+    expect(
+      (approvedEvent.payload as { notice?: { version?: string } }).notice
+        ?.version,
+    ).toBe("v1");
   });
 
   it("persists across store instances (survives reconnect)", async () => {
@@ -204,8 +214,11 @@ describe("PgStore persistence (pglite)", () => {
       now: () => new Date(AT),
     });
 
-    expect(await dispatcher.poll()).toBe(1);
-    expect(dispatched).toEqual(["candidate.rejected"]);
+    expect(await dispatcher.poll()).toBe(2);
+    expect(dispatched).toEqual([
+      "candidate.acknowledged",
+      "candidate.rejected",
+    ]);
     expect(await store.outbox.pending()).toHaveLength(0);
     expect(await dispatcher.poll()).toBe(0);
   });
@@ -232,14 +245,22 @@ describe("PgStore persistence (pglite)", () => {
     });
 
     const pending = await store.outbox.pending();
-    expect(pending).toHaveLength(1);
-    const event = pending[0]!;
+    expect(pending).toHaveLength(2);
+    const approvedEvent = pending.find(
+      (event) => event.type === "candidate.approved",
+    )!;
 
-    expect(await store.outbox.claimForDispatch(event.id, future)).toBe(true);
-    expect(await store.outbox.claimForDispatch(event.id, future)).toBe(false);
-    await store.outbox.markDispatched(event.id);
-    expect(await store.outbox.claimForDispatch(event.id, future)).toBe(false);
-    expect(await store.outbox.pending()).toHaveLength(0);
+    expect(await store.outbox.claimForDispatch(approvedEvent.id, future)).toBe(
+      true,
+    );
+    expect(await store.outbox.claimForDispatch(approvedEvent.id, future)).toBe(
+      false,
+    );
+    await store.outbox.markDispatched(approvedEvent.id);
+    expect(await store.outbox.claimForDispatch(approvedEvent.id, future)).toBe(
+      false,
+    );
+    expect(await store.outbox.pending()).toHaveLength(1);
 
     await store.outbox.enqueue({
       id: "lease-expired",
@@ -259,6 +280,51 @@ describe("PgStore persistence (pglite)", () => {
     expect(await store.outbox.claimForDispatch("lease-expired", future)).toBe(
       true,
     );
+  });
+
+  it("enforces retention operations in Postgres (expire/anonymize/remove)", async () => {
+    const service = buildService(store);
+    const role = await service.createRole({
+      title: "Engineer",
+      requirements: ["TS"],
+    });
+    const candidate = await service.createCandidate({
+      roleId: role.id,
+      name: "Old",
+      email: "old@example.com",
+      resumeText: "TS.",
+    });
+    const oldTimestamp = "2025-08-01T00:00:00.000Z";
+    const cutoff = "2026-01-01T00:00:00.000Z";
+    await store.outbox.enqueue({
+      id: "old-ev",
+      type: "candidate.acknowledged",
+      candidateId: candidate.id,
+      payload: { candidateId: candidate.id },
+      at: oldTimestamp,
+      dispatchedAt: null,
+    });
+    await store.audit.append({
+      id: "old-au",
+      candidateId: candidate.id,
+      action: "candidate.reviewed",
+      detail: { approved: true },
+      at: oldTimestamp,
+    });
+
+    expect(await store.outbox.expireBefore(cutoff)).toBe(1);
+    expect(
+      (await store.outbox.pending()).some((event) => event.id === "old-ev"),
+    ).toBe(false);
+
+    expect(await store.audit.anonymizeBefore(cutoff)).toBe(1);
+    const audit = await store.audit.list();
+    const anonymized = audit.find((event) => event.id === "old-au");
+    expect(anonymized?.candidateId).toBeNull();
+    expect(anonymized?.detail).toEqual({ anonymized: true });
+
+    await store.candidates.remove(candidate.id);
+    expect(await store.candidates.get(candidate.id)).toBeNull();
   });
 
   it("throws on updating a missing candidate", async () => {
