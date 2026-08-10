@@ -28,7 +28,7 @@ One LIA entry per list batch, completed BEFORE the first send of that batch. Sup
 - Verdict: LI is proportionate for corporate-subscriber B2B contact; individual/sole-trader contacts are excluded pending consent or soft opt-in.
 
 ### 4. Record-keeping
-- List source: warm intros from CEO/board network + public professional sources (linkedin profile, company page); enrichment via Sales Navigator + Hunter (ToS-compliant, <= GBP 150/mo, CEO-confirmed 2026-08-10). Date of collection: 2026-08-10 (W01-W12 enriched/verified; BDR send report pending formalisation - enrichment date per Cold Calling task log 12:27Z).
+- List source: warm intros from CEO/board network + public professional sources (linkedin profile, company page); enrichment via Sales Navigator + Hunter (ToS-compliant, ~GBP 115/mo within 150 ceiling, CEO-confirmed 2026-08-10). Date of collection: 2026-08-10 (BDR formal report DSRA-24 12:45:42Z, enrichment-status.md v2). Sends: 12 warm HR intros 2026-08-10 (Email 1 + LinkedIn touch, footer + AI disclosure), 0 opt-outs.
 - Contacts: W01-W12 (crm-tracker.csv). Verification required before send (no-unverified-sends rule).
 - Opt-out channel: unsubscribe@dsrvmltd.co.uk, logged to crm-tracker optOut/unsubscribedAt/optOutSource.
 - LIA reviewer: AI Governance Officer. Renewal: on any material change to purpose, audience, data, or after 12 months.

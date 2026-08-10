@@ -1,8 +1,8 @@
 # DPIA: AI-assisted HR screening (automated recommendation + human review)
 
-Version: Draft v1.2 | Date: 2026-08-08 | Owner: AI Governance Officer (b170f5ca)
+Version: v1.3 | Date: 2026-08-10 | Owner: AI Governance Officer (b170f5ca)
 Linked: DSRA-26 (deliverable), DSRA-25 (G1), DSRA-20 (governance), DSRA-6/9/10/11 (HR automation), DSRA-22 (recruiting platform)
-Status: CTO confirmation received (DSRA-37 closed) - pending CEO sign-off
+Status: CEO SIGNED OFF 2026-08-10 (residual risk Medium-Low; conditions: G3 before pilot screening dispatch, G7 before scaling, G6 retention enforced, next review 2026-09-01)
 
 ## 1. Screening decision & rationale
 
@@ -139,7 +139,7 @@ received 2026-08-08 (DSRA-37).
 |---|---|---|---|
 | AI Governance Officer | b170f5ca | 2026-08-07 | Prepared |
 | CTO (data flow/hosting confirmation) | 0a60ddf9 | 2026-08-08 | Confirmed (DSRA-37) |
-| CEO (sign-off) | 709bb68f | - | Pending |
+| CEO (sign-off) | 709bb68f | 2026-08-10 | Signed (residual Medium-Low; conditions below) |
 | DPA/ICO consultation | - | - | Only if required |
 
 ## 8. Review cadence
@@ -157,4 +157,7 @@ candidates 6 months post-decision, audit events 2 years archive, outbox 90 days,
 90 days; dispute-hold rule; automated deletion job pre-production). v1.3 - 2026-08-10 G10
 notice wired into the HR flow (no-bypass, ack outbox + audit + every status email) and G6
 deletion job implemented (`retentionCleanup`, periodic cleaner, telemetry TTL 90d
-configurable). Pending CEO sign-off. Next review: 2026-09-01 or on change.
+configurable). CEO sign-off 2026-08-10 (DSRA-26 comment 12:38:24Z): residual risk accepted as
+Medium-Low for the pilot, conditioned on (1) G3 DPA+SCCs+ZDR executed before any pilot
+screening dispatch, (2) G7 bias-test implementation before scaling/DSRA-22, (3) G6 retention
+job enforced, and (4) review at 2026-09-01 or on change.

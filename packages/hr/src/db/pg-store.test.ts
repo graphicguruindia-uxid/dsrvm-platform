@@ -27,6 +27,7 @@ CREATE TABLE candidates (
   status text NOT NULL,
   screening jsonb,
   review jsonb,
+  ai_notice_disclosed_at text,
   created_at text NOT NULL,
   updated_at text NOT NULL
 );
@@ -120,6 +121,7 @@ describe("PgStore persistence (pglite)", () => {
 
     const screened = await service.screenCandidate(candidate.id);
     expect(screened.status).toBe("pending_review");
+    expect(screened.aiNoticeDisclosedAt).toBe(AT);
     expect(screened.screening?.recommendation).toBe("advance");
     expect(screened.screening?.strengths).toEqual([
       "TypeScript",
@@ -338,6 +340,7 @@ describe("PgStore persistence (pglite)", () => {
         status: "pending_screening",
         screening: null,
         review: null,
+        aiNoticeDisclosedAt: null,
         createdAt: AT,
         updatedAt: AT,
       }),

@@ -20,6 +20,7 @@ export interface Candidate {
   status: CandidateStatus;
   screening: ScreeningResult | null;
   review: ReviewDecision | null;
+  aiNoticeDisclosedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

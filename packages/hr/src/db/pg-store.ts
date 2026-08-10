@@ -214,6 +214,7 @@ interface CandidateRow {
   status: string;
   screening: ScreeningResult | null;
   review: ReviewDecision | null;
+  aiNoticeDisclosedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -260,6 +261,7 @@ function candidateToRow(candidate: Candidate): CandidateRow {
     status: candidate.status,
     screening: candidate.screening,
     review: candidate.review,
+    aiNoticeDisclosedAt: candidate.aiNoticeDisclosedAt,
     createdAt: candidate.createdAt,
     updatedAt: candidate.updatedAt,
   };
@@ -275,6 +277,7 @@ function rowToCandidate(row: CandidateRow): Candidate {
     status: row.status as CandidateStatus,
     screening: row.screening,
     review: row.review,
+    aiNoticeDisclosedAt: row.aiNoticeDisclosedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

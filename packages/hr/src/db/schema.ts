@@ -18,6 +18,7 @@ export const candidates = pgTable("candidates", {
   status: text("status").notNull(),
   screening: jsonb("screening").$type<ScreeningResult | null>(),
   review: jsonb("review").$type<ReviewDecision | null>(),
+  aiNoticeDisclosedAt: text("ai_notice_disclosed_at"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

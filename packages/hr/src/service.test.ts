@@ -4,6 +4,7 @@ import { HrService } from "./service.js";
 import type { RetentionSchedule } from "./service.js";
 import { createScreeningEngine } from "./screening.js";
 import { createInMemoryStore } from "./store.js";
+import type { Candidate } from "./types.js";
 
 const SCREENING_JSON = (recommendation: string) =>
   JSON.stringify({
@@ -180,6 +181,35 @@ describe("HrService pipeline", () => {
     await expect(service.screenCandidate("missing-id")).rejects.toThrow(
       "not found",
     );
+  });
+
+  it("R6: blocks review when the AI transparency notice was not disclosed", async () => {
+    const { service, store } = buildService();
+    const role = await service.createRole({
+      title: "Engineer",
+      requirements: ["TS"],
+    });
+    const undisclosed: Candidate = {
+      id: "undisclosed-1",
+      roleId: role.id,
+      name: "No Notice",
+      email: "no-notice@example.com",
+      resumeText: "TS.",
+      status: "pending_review",
+      screening: null,
+      review: null,
+      aiNoticeDisclosedAt: null,
+      createdAt: new Date("2026-08-04T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2026-08-04T00:00:00.000Z").toISOString(),
+    };
+    await store.candidates.create(undisclosed);
+
+    await expect(
+      service.reviewCandidate(undisclosed.id, {
+        approved: true,
+        reviewer: "hr",
+      }),
+    ).rejects.toThrow("has not been disclosed the AI transparency notice");
   });
 
   it("keeps a full audit trail with candidate ids and details", async () => {

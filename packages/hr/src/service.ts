@@ -35,6 +35,15 @@ export interface RetentionCleanupCounts {
   outboxExpired: number;
 }
 
+export class CandidateNoticeNotDisclosedError extends Error {
+  constructor(candidateId: string) {
+    super(
+      `candidate "${candidateId}" has not been disclosed the AI transparency notice; review is blocked until disclosure is recorded`,
+    );
+    this.name = "CandidateNoticeNotDisclosedError";
+  }
+}
+
 export class HrService {
   private readonly store: Store;
   private readonly screeningEngine: ScreeningEngine;
@@ -87,6 +96,7 @@ export class HrService {
       status: "pending_screening",
       screening: null,
       review: null,
+      aiNoticeDisclosedAt: timestamp,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -158,6 +168,9 @@ export class HrService {
       throw new Error(
         `candidate "${id}" cannot be reviewed from status "${candidate.status}"`,
       );
+    }
+    if (!candidate.aiNoticeDisclosedAt) {
+      throw new CandidateNoticeNotDisclosedError(id);
     }
     const timestamp = this.now().toISOString();
     const updated: Candidate = {

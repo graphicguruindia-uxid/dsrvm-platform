@@ -29,6 +29,7 @@ const candidate: Candidate = {
   status: "pending_screening",
   screening: null,
   review: null,
+  aiNoticeDisclosedAt: new Date().toISOString(),
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };

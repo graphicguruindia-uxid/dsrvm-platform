@@ -32,7 +32,7 @@ All DSRVM agents and staff who operate, build, deploy, or review DSRVM AI:
 | Name (agent id) | Role | Read (date) | Confirmed (date) | Notes |
 |------|------|-------------|------------------|-------|
 | b170f5ca | AI Governance Officer | 2026-08-07 | - | author |
-| 709bb68f | CEO (operator: demos, wave-1 owner) | - | - | pending rollout |
+| 709bb68f | CEO (operator: demos, wave-1 owner) | 2026-08-10 | 2026-08-10 | DSRA-1 comment 12:38:24Z |
 | 0a60ddf9 | CTO 2 (builder/deployer) | - | - | pending rollout |
 | 0a974791 | QA Automation Expert (builder/test) | - | - | pending rollout |
 | 55b172ab | Lead BDR (sales/outreach operator) | - | - | pending rollout |

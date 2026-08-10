@@ -238,6 +238,43 @@ async function main() {
       outboxAfterReview,
     );
 
+    await app.store.candidates.create({
+      id: "qa-undisclosed",
+      roleId: role.json().role.id,
+      name: "No Notice",
+      email: "no-notice@example.com",
+      resumeText: "QA.",
+      status: "pending_review",
+      screening: {
+        score: 80,
+        recommendation: "advance",
+        summary: "ok",
+        strengths: [],
+        flags: [],
+        provider: "demo",
+        model: "demo-v1",
+        screenedAt: new Date().toISOString(),
+      },
+      review: null,
+      aiNoticeDisclosedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    const blockedReview = await call(server, {
+      method: "POST",
+      url: "/api/candidates/qa-undisclosed/review",
+      payload: { approved: true, reviewer: "qa-automation" },
+    });
+    check(
+      "DSRA-27/R6: review blocked with 400 until the AI notice is disclosed",
+      blockedReview.statusCode === 400 &&
+        typeof blockedReview.json().error === "string" &&
+        blockedReview
+          .json()
+          .error.includes("has not been disclosed the AI transparency notice"),
+      blockedReview.json(),
+    );
+
     const badReview = await call(server, {
       method: "POST",
       url: `/api/candidates/${candidateId}/review`,

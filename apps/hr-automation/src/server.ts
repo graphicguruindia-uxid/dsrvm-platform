@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { HrService } from "@dsrvm/hr";
 import type { CandidateIngestor } from "@dsrvm/hr";
 import type { TelemetryReport } from "@dsrvm/telemetry";
-import { candidateAiNotice } from "@dsrvm/hr";
+import { candidateAiNotice, CandidateNoticeNotDisclosedError } from "@dsrvm/hr";
 import { dashboardHtml } from "./dashboard.js";
 
 export interface ReviewerTelemetry {
@@ -167,6 +167,11 @@ export function buildReviewerServer(
       });
       return { candidate };
     } catch (error) {
+      if (error instanceof CandidateNoticeNotDisclosedError) {
+        return reply.code(400).send({
+          error: error.message,
+        });
+      }
       return reply.code(409).send({
         error: error instanceof Error ? error.message : String(error),
       });

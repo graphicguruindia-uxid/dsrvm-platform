@@ -164,6 +164,50 @@ describe("reviewer server", () => {
     await app.close();
   });
 
+  it("R6: blocks review with 400 when the AI transparency notice was not disclosed", async () => {
+    const app = build();
+    const roleRes = await app.server.inject({
+      method: "POST",
+      url: "/api/roles",
+      payload: { title: "Engineer", requirements: ["TypeScript"] },
+    });
+    const roleId = roleRes.json().role.id;
+
+    await app.store.candidates.create({
+      id: "undisclosed-1",
+      roleId,
+      name: "No Notice",
+      email: "no-notice@example.com",
+      resumeText: "TS.",
+      status: "pending_review",
+      screening: {
+        score: 80,
+        recommendation: "advance",
+        summary: "ok",
+        strengths: ["TS"],
+        flags: [],
+        provider: "fake",
+        model: "fake-v1",
+        screenedAt: NOW().toISOString(),
+      },
+      review: null,
+      aiNoticeDisclosedAt: null,
+      createdAt: NOW().toISOString(),
+      updatedAt: NOW().toISOString(),
+    });
+
+    const res = await app.server.inject({
+      method: "POST",
+      url: "/api/candidates/undisclosed-1/review",
+      payload: { approved: true, reviewer: "reviewer@dsrvm" },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toContain(
+      "has not been disclosed the AI transparency notice",
+    );
+    await app.close();
+  });
+
   it("seedDemo populates a full review queue via the pipeline", async () => {
     const app = build();
     const seeded = await seedDemo(app.hr);
