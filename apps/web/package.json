@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/serve.ts",
     "lint": "prettier --check src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"

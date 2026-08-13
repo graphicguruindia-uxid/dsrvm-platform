@@ -1,6 +1,6 @@
 import { buildServer } from "./server.js";
 
-const port = Number(process.env.PORT ?? 3001);
+const port = Number(process.env.PORT ?? 8899);
 const app = buildServer();
 
 app

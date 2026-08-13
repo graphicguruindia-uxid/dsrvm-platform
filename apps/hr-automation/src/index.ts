@@ -1,7 +1,7 @@
 import { createReviewerApp, type ProviderKind } from "./app.js";
 import { seedDemo } from "./seed.js";
 
-const port = Number(process.env.PORT ?? 3001);
+const port = Number(process.env.PORT ?? 3002);
 const provider = (process.env.PROVIDER ?? "demo") as ProviderKind;
 
 const signal = new AbortController().signal;
