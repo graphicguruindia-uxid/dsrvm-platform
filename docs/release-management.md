@@ -1,6 +1,6 @@
 # DSRA-17 Release Management — Go-Live Plan
 
-Owner: CTO | Status: In progress | Date: 2026-08-06 (updated 2026-08-07)
+Owner: CTO | Status: DONE (closed 2026-08-13, final ack 2026-08-17) | Date: 2026-08-06 (updated 2026-08-17)
 
 ## Scope
 
@@ -72,3 +72,13 @@ credentials are confirmed provisioned in CI; they remain unused for these servic
 
 - CEO/local-board: required for production promote and hosting-target (Node host) selection.
 - CTO: owns readiness; re-verified blockers 2026-08-07.
+
+## Closure record (DSRA-17)
+
+- **Status:** DONE. Closed 2026-08-13; final ack by CTO 2 (comment 8bd1e71e) 2026-08-17.
+- **Baseline:** fed2e4e on origin/main. CI run 31395106217 green (164 unit, qa-smoke 59/59).
+- **Staging gate:** PASS (3/3 services live, release-scope green).
+- **Post-promote:** PASS 19/19 (DSRA-61 done).
+- **Governance folded in:** AI transparency notice v1 (DSRA-27/R6 hard-block), G6 retention TTL, telemetry TTL, audit trail.
+- **Out-of-scope follow-ups (confirmed):** DSRA-62 (dispute feature), DSRA-60 (external host, deferred), DSRA-59 (dev port mapping, committed, push deferred).
+- **No blockers.** DSRA-17 requires nothing further.
