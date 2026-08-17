@@ -2,7 +2,7 @@
 
 Version: Draft v1 | Date: 2026-08-07 | Owner: AI Governance Officer (b170f5ca)
 Linked: DSRA-29 (deliverable), DSRA-25 (G7), DSRA-26 (DPIA control R1), DSRA-5 (eval harness), DSRA-20
-Status: Draft - implementation-ready spec for CTO to build into @dsrvm/ai eval harness
+Status: IMPLEMENTED v1.1 (2026-08-17, CTO 2) - spec built into @dsrvm/ai + @dsrvm/hr; bias gate wired into CI
 Compliance: EU AI Act Art 10/Annex III, GDPR Art 22/35, EEOC, NYC LL144, Colorado AI Act, ISO/IEC 42001 8.3
 
 ## 1. Objective
@@ -94,6 +94,22 @@ Run bias suite:
 - Keep protected-attribute handling synthetic-only; never store real candidates' protected
   data (AUP 2.2).
 
+### Implementation record (v1.1, 2026-08-17)
+
+- **Metrics + thresholds + report:** `packages/ai/src/bias.ts` (`assessBiasSuite`,
+  `effectSize`, `mannWhitneyU`, `renderBiasReportMarkdown`) - recommendation parity, score
+  mean/median, 4/5ths rule, Cohen's d, Mann-Whitney U; PASS/WATCH/FAIL per Section 6.
+- **Cohort fixtures:** `packages/hr/src/bias-cohorts.ts` (`buildSyntheticCohorts`) - paired
+  synthetic profiles per protected group (name/email/nationality variety, employment gaps,
+  disability accommodation mentions) over identical skills; git-versioned.
+- **Gate runner:** `packages/hr/src/bias-gate.ts` (`runBiasGate`) - screens cohorts through
+  `createScreeningEngine`, runs the assessment, returns metrics + comparisons + triggers.
+- **Gate command:** `scripts/bias-gate.mts` + `pnpm bias:gate`; writes `bias-report.json`;
+  exit 1 on FAIL (halt promotion), 2 on WATCH. Wired into `.github/workflows/ci.yml`
+  qa-gate step + 2 qa-smoke checks (61/61 green on the deterministic demo provider).
+- **Cadence:** gate re-run on model/prompt/screening-logic/intake change and quarterly
+  against real-provider cohorts (env `BIAS_PROVIDER=anthropic|openai`, `BIAS_SAMPLE_LIMIT`).
+
 ## 10. Failure of oversight
 
 If bias testing cannot be implemented before scaling the recruiting platform (DSRA-22),
@@ -102,4 +118,5 @@ clients to production-scale screening without it.
 
 ## Versioning
 
+v1.1 - 2026-08-17: implementation record added (modules, gate command, CI wiring).
 v1 - 2026-08-07 draft. Review with CTO on resume before implementation.

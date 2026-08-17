@@ -5,6 +5,8 @@ export * from "./service.js";
 export * from "./notice.js";
 export * from "./outbox.js";
 export * from "./retention.js";
+export * from "./bias-cohorts.js";
+export * from "./bias-gate.js";
 export * from "./ingest/index.js";
 export * from "./db/schema.js";
 export * from "./db/pg-store.js";

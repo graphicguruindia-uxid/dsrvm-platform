@@ -32,6 +32,7 @@ pnpm-debug.log*
 
 # QA artifacts
 qa-report.json
+bias-report.json
 
 # Agent-internal context (not part of the repo)
 instructions/

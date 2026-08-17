@@ -12,6 +12,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "qa:smoke": "pnpm build && pnpm exec tsx scripts/qa-smoke.mts",
+    "bias:gate": "pnpm build && pnpm exec tsx scripts/bias-gate.mts",
     "qa": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm qa:smoke",
     "staging:local": "pnpm build && pnpm exec tsx scripts/run-local.mts",
     "format": "prettier --write ."

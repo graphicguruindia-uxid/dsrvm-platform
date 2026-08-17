@@ -60,6 +60,9 @@ jobs:
       - name: Run QA smoke suite (api, hr-automation, web)
         run: pnpm qa:smoke
 
+      - name: Run AI bias gate (G7, DSRA-42) - synthetic protected-group cohorts
+        run: pnpm bias:gate
+
       - name: Upload QA report
         uses: actions/upload-artifact@v4
         with:

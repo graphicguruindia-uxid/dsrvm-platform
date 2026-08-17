@@ -4,4 +4,5 @@ export * from "./gateway.js";
 export * from "./prompts.js";
 export * from "./structured.js";
 export * from "./evals.js";
+export * from "./bias.js";
 export * from "./providers/index.js";

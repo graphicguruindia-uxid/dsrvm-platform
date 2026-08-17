@@ -1,6 +1,9 @@
 import { createHmac } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { createGateway, createFakeProvider } from "../packages/ai/src/index.js";
+import { createScreeningEngine } from "../packages/hr/src/screening.js";
+import { runBiasGate } from "../packages/hr/src/bias-gate.js";
 import { buildServer as buildApiServer } from "../apps/api/src/server.js";
 import { createReviewerApp } from "../apps/hr-automation/src/app.js";
 import { createWebReferenceApp } from "../apps/web/src/app.js";
@@ -861,6 +864,31 @@ async function main() {
     );
 
     await app.close();
+  }
+
+  console.log("=== AI bias gate (G7, DSRA-42) ===");
+  {
+    const gateway = createGateway([
+      createFakeProvider({
+        name: "demo",
+        echo: false,
+        output: JSON.stringify({
+          score: 70,
+          recommendation: "advance",
+          summary: "Demo screening.",
+          strengths: ["TypeScript"],
+          flags: [],
+        }),
+      }),
+    ]);
+    const engine = createScreeningEngine(gateway);
+    const bias = await runBiasGate(engine, { sampleLimit: 800 });
+    check(
+      "G7: bias gate screens synthetic protected-group cohorts",
+      bias.screened >= 400 && bias.metrics.length >= 3,
+      bias,
+    );
+    check("G7: bias gate passes on the deterministic demo provider", bias.level === "PASS", bias);
   }
 
   console.log("");
