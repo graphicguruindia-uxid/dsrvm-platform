@@ -330,6 +330,35 @@ describe("PgStore persistence (pglite)", () => {
     expect(await store.candidates.get(candidate.id)).toBeNull();
   });
 
+  it("keeps audit rows for held candidates during anonymizeBefore", async () => {
+    const heldId = "held-candidate";
+    const oldTimestamp = "2025-08-01T00:00:00.000Z";
+    const cutoff = "2026-01-01T00:00:00.000Z";
+    await store.audit.append({
+      id: "held-au",
+      candidateId: heldId,
+      action: "candidate.reviewed",
+      detail: { approved: true },
+      at: oldTimestamp,
+    });
+    await store.audit.append({
+      id: "expired-au",
+      candidateId: "other-candidate",
+      action: "candidate.reviewed",
+      detail: { approved: false },
+      at: oldTimestamp,
+    });
+
+    expect(await store.audit.anonymizeBefore(cutoff, [heldId])).toBe(1);
+    const audit = await store.audit.list();
+    const held = audit.find((event) => event.id === "held-au");
+    expect(held?.candidateId).toBe(heldId);
+    expect(held?.detail).toEqual({ approved: true });
+    const expired = audit.find((event) => event.id === "expired-au");
+    expect(expired?.candidateId).toBeNull();
+    expect(expired?.detail).toEqual({ anonymized: true });
+  });
+
   it("throws on updating a missing candidate", async () => {
     await expect(
       store.candidates.update({
