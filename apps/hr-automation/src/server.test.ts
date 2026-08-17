@@ -192,6 +192,7 @@ describe("reviewer server", () => {
       },
       review: null,
       aiNoticeDisclosedAt: null,
+      dispute: null,
       createdAt: NOW().toISOString(),
       updatedAt: NOW().toISOString(),
     });

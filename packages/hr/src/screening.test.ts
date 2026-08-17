@@ -30,6 +30,7 @@ const candidate: Candidate = {
   screening: null,
   review: null,
   aiNoticeDisclosedAt: new Date().toISOString(),
+  dispute: null,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };

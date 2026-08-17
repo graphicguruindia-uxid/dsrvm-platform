@@ -28,6 +28,7 @@ CREATE TABLE candidates (
   screening jsonb,
   review jsonb,
   ai_notice_disclosed_at text,
+  dispute jsonb,
   created_at text NOT NULL,
   updated_at text NOT NULL
 );
@@ -341,6 +342,7 @@ describe("PgStore persistence (pglite)", () => {
         screening: null,
         review: null,
         aiNoticeDisclosedAt: null,
+        dispute: null,
         createdAt: AT,
         updatedAt: AT,
       }),

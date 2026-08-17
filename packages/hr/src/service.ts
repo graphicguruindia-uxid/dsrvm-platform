@@ -31,6 +31,7 @@ export const DEFAULT_RETENTION_SCHEDULE: RetentionSchedule = {
 
 export interface RetentionCleanupCounts {
   candidatesDeleted: number;
+  candidatesHeld: number;
   auditAnonymized: number;
   outboxExpired: number;
 }
@@ -97,6 +98,7 @@ export class HrService {
       screening: null,
       review: null,
       aiNoticeDisclosedAt: timestamp,
+      dispute: null,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -254,11 +256,17 @@ export class HrService {
     ).toISOString();
 
     const outboxExpired = await this.store.outbox.expireBefore(outboxCutoff);
-    const auditAnonymized = await this.store.audit.anonymizeBefore(auditCutoff);
 
+    const heldCandidateIds: string[] = [];
     let candidatesDeleted = 0;
+    let candidatesHeld = 0;
     const candidates = await this.store.candidates.list();
     for (const candidate of candidates) {
+      if (this.isDisputeHeld(candidate.dispute, nowMs)) {
+        heldCandidateIds.push(candidate.id);
+        candidatesHeld += 1;
+        continue;
+      }
       const decidedAt = candidate.review?.decidedAt;
       if (decidedAt && decidedAt < candidateCutoff) {
         await this.store.candidates.remove(candidate.id);
@@ -266,7 +274,75 @@ export class HrService {
       }
     }
 
-    return { candidatesDeleted, auditAnonymized, outboxExpired };
+    const auditAnonymized = await this.store.audit.anonymizeBefore(
+      auditCutoff,
+      heldCandidateIds,
+    );
+
+    return {
+      candidatesDeleted,
+      candidatesHeld,
+      auditAnonymized,
+      outboxExpired,
+    };
+  }
+
+  async raiseDispute(
+    id: string,
+    input: { note?: string } = {},
+  ): Promise<Candidate> {
+    const candidate = await this.requireCandidate(id);
+    const timestamp = this.now().toISOString();
+    const updated: Candidate = {
+      ...candidate,
+      dispute: {
+        raisedAt: timestamp,
+        resolvedAt: null,
+        note: input.note ?? null,
+      },
+      updatedAt: timestamp,
+    };
+    await this.store.candidates.update(updated);
+    await this.store.audit.append(
+      this.auditEvent(candidate.id, "candidate.dispute_raised", {
+        note: input.note ?? null,
+      }),
+    );
+    return updated;
+  }
+
+  async resolveDispute(id: string): Promise<Candidate> {
+    const candidate = await this.requireCandidate(id);
+    if (!candidate.dispute || candidate.dispute.resolvedAt !== null) {
+      throw new Error(`candidate "${id}" has no open dispute to resolve`);
+    }
+    const timestamp = this.now().toISOString();
+    const updated: Candidate = {
+      ...candidate,
+      dispute: {
+        ...candidate.dispute,
+        resolvedAt: timestamp,
+      },
+      updatedAt: timestamp,
+    };
+    await this.store.candidates.update(updated);
+    await this.store.audit.append(
+      this.auditEvent(candidate.id, "candidate.dispute_resolved", {}),
+    );
+    return updated;
+  }
+
+  private isDisputeHeld(
+    dispute: { resolvedAt: string | null } | null,
+    nowMs: number,
+  ): boolean {
+    if (!dispute) return false;
+    if (dispute.resolvedAt === null) return true;
+    return (
+      new Date(dispute.resolvedAt).getTime() +
+        DEFAULT_RETENTION_SCHEDULE.candidatesMs >
+      nowMs
+    );
   }
 
   private async requireCandidate(id: string): Promise<Candidate> {

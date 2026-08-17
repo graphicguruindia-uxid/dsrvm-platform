@@ -199,6 +199,7 @@ describe("HrService pipeline", () => {
       screening: null,
       review: null,
       aiNoticeDisclosedAt: null,
+      dispute: null,
       createdAt: new Date("2026-08-04T00:00:00.000Z").toISOString(),
       updatedAt: new Date("2026-08-04T00:00:00.000Z").toISOString(),
     };
@@ -312,5 +313,64 @@ describe("HrService pipeline", () => {
     const anonymized = audit.find((event) => event.id === "old-audit");
     expect(anonymized?.candidateId).toBeNull();
     expect(anonymized?.detail).toEqual({ anonymized: true });
+  });
+
+  it("retentionCleanup honours dispute hold (override the G6 schedule)", async () => {
+    const { service, store } = buildService();
+    const role = await service.createRole({
+      title: "Engineer",
+      requirements: ["TS"],
+    });
+
+    const disputed = await service.createCandidate({
+      roleId: role.id,
+      name: "Disputed",
+      email: "disputed@example.com",
+      resumeText: "TS.",
+    });
+    await service.screenCandidate(disputed.id);
+    await service.reviewCandidate(disputed.id, {
+      approved: true,
+      reviewer: "hr-manager",
+    });
+
+    const disputedCandidate = (await store.candidates.get(disputed.id))!;
+    await store.candidates.update({
+      ...disputedCandidate,
+      review: {
+        ...disputedCandidate.review!,
+        decidedAt: "2025-08-01T00:00:00.000Z",
+      },
+    });
+    await store.audit.append({
+      id: "disputed-audit",
+      candidateId: disputed.id,
+      action: "candidate.reviewed",
+      detail: { approved: true },
+      at: "2025-08-01T00:00:00.000Z",
+    });
+    await service.raiseDispute(disputed.id, { note: "tribunal claim" });
+
+    const tinySchedule: RetentionSchedule = {
+      candidatesMs: 100 * 24 * 60 * 60 * 1000,
+      auditMs: 100 * 24 * 60 * 60 * 1000,
+      outboxMs: 1 * 24 * 60 * 60 * 1000,
+    };
+    const counts = await service.retentionCleanup(tinySchedule);
+
+    expect(counts.candidatesDeleted).toBe(0);
+    expect(counts.candidatesHeld).toBe(1);
+    expect(await service.getCandidate(disputed.id)).not.toBeNull();
+
+    const audit = await service.auditLog();
+    const held = audit.find((event) => event.id === "disputed-audit");
+    expect(held?.candidateId).toBe(disputed.id);
+    expect(held?.detail).toEqual({ approved: true });
+
+    await service.resolveDispute(disputed.id);
+    const afterResolve = await service.retentionCleanup(tinySchedule);
+    const resolvedHeld = (await store.candidates.get(disputed.id))!;
+    expect(resolvedHeld.dispute?.resolvedAt).not.toBeNull();
+    expect(afterResolve.candidatesHeld).toBeGreaterThan(0);
   });
 });

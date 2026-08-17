@@ -42,8 +42,9 @@ export function createRetentionCleaner(
     try {
       const counts = await runOnce();
       logger?.(
-        `retention cleanup: ${counts.candidatesDeleted} candidates, ` +
-          `${counts.auditAnonymized} audit events, ${counts.outboxExpired} outbox events`,
+        `retention cleanup: ${counts.candidatesDeleted} candidates deleted, ` +
+          `${counts.candidatesHeld} on dispute hold, ` +
+          `${counts.auditAnonymized} audit events anonymized, ${counts.outboxExpired} outbox events expired`,
       );
     } catch (error) {
       onError?.(error);

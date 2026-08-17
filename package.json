@@ -13,6 +13,7 @@
     "test": "turbo run test",
     "qa:smoke": "pnpm build && pnpm exec tsx scripts/qa-smoke.mts",
     "qa": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm qa:smoke",
+    "staging:local": "pnpm build && pnpm exec tsx scripts/run-local.mts",
     "format": "prettier --write ."
   },
   "devDependencies": {

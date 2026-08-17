@@ -23,7 +23,10 @@ export interface RoleStore {
 export interface AuditStore {
   append(event: AuditEvent): Promise<void>;
   list(): Promise<AuditEvent[]>;
-  anonymizeBefore(cutoff: string): Promise<number>;
+  anonymizeBefore(
+    cutoff: string,
+    keepCandidateIds?: readonly string[],
+  ): Promise<number>;
 }
 
 export interface OutboxStore {
@@ -99,10 +102,17 @@ export class InMemoryAuditStore implements AuditStore {
     return [...this.rows];
   }
 
-  async anonymizeBefore(cutoff: string): Promise<number> {
+  async anonymizeBefore(
+    cutoff: string,
+    keepCandidateIds?: readonly string[],
+  ): Promise<number> {
+    const keep = new Set(keepCandidateIds ?? []);
     let anonymized = 0;
     for (const event of this.rows) {
-      if (event.at < cutoff) {
+      if (
+        event.at < cutoff &&
+        (event.candidateId === null || !keep.has(event.candidateId))
+      ) {
         event.candidateId = null;
         event.detail = { anonymized: true };
         anonymized += 1;

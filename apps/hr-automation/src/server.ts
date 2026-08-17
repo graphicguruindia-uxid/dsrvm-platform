@@ -178,6 +178,36 @@ export function buildReviewerServer(
     }
   });
 
+  server.post<{
+    Params: { id: string };
+    Body: { note?: string };
+  }>("/api/candidates/:id/dispute", async (request, reply) => {
+    try {
+      const candidate = await hr.raiseDispute(request.params.id, {
+        note: request.body?.note ?? undefined,
+      });
+      return { candidate };
+    } catch (error) {
+      return reply.code(404).send({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  server.post<{ Params: { id: string } }>(
+    "/api/candidates/:id/dispute/resolve",
+    async (request, reply) => {
+      try {
+        const candidate = await hr.resolveDispute(request.params.id);
+        return { candidate };
+      } catch (error) {
+        return reply.code(409).send({
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    },
+  );
+
   server.get("/api/audit", async () => ({ events: await hr.auditLog() }));
 
   server.post("/api/retention/cleanup", async () => ({

@@ -1,5 +1,9 @@
 import { index, jsonb, pgTable, text } from "drizzle-orm/pg-core";
-import type { ScreeningResult, ReviewDecision } from "../types.js";
+import type {
+  ScreeningResult,
+  ReviewDecision,
+  DisputeRecord,
+} from "../types.js";
 
 export const roles = pgTable("roles", {
   id: text("id").primaryKey(),
@@ -19,6 +23,7 @@ export const candidates = pgTable("candidates", {
   screening: jsonb("screening").$type<ScreeningResult | null>(),
   review: jsonb("review").$type<ReviewDecision | null>(),
   aiNoticeDisclosedAt: text("ai_notice_disclosed_at"),
+  dispute: jsonb("dispute").$type<DisputeRecord | null>(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

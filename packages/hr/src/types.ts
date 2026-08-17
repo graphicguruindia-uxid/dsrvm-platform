@@ -11,6 +11,12 @@ export interface RoleProfile {
   createdAt: string;
 }
 
+export interface DisputeRecord {
+  raisedAt: string;
+  resolvedAt: string | null;
+  note: string | null;
+}
+
 export interface Candidate {
   id: string;
   roleId: string;
@@ -21,6 +27,7 @@ export interface Candidate {
   screening: ScreeningResult | null;
   review: ReviewDecision | null;
   aiNoticeDisclosedAt: string | null;
+  dispute: DisputeRecord | null;
   createdAt: string;
   updatedAt: string;
 }

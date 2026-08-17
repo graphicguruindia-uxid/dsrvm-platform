@@ -1,4 +1,5 @@
-import { and, asc, eq, isNull, lt, or } from "drizzle-orm";
+import { and, asc, eq, isNull, lt, ne, or } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
@@ -6,6 +7,7 @@ import type {
   AuditEvent,
   Candidate,
   CandidateStatus,
+  DisputeRecord,
   OutboxEvent,
   RoleProfile,
   ScreeningResult,
@@ -102,14 +104,27 @@ export class PgAuditStore implements AuditStore {
     return rows.map(rowToAuditEvent);
   }
 
-  async anonymizeBefore(cutoff: string): Promise<number> {
+  async anonymizeBefore(
+    cutoff: string,
+    keepCandidateIds?: readonly string[],
+  ): Promise<number> {
+    const conditions: SQL[] = [lt(auditEvents.at, cutoff)];
+    if (keepCandidateIds && keepCandidateIds.length > 0) {
+      const orExpr = or(
+        isNull(auditEvents.candidateId),
+        ...keepCandidateIds.map((id) => ne(auditEvents.candidateId, id)),
+      );
+      if (orExpr) {
+        conditions.push(orExpr);
+      }
+    }
     const rows = await this.db
       .update(auditEvents)
       .set({
         candidateId: null,
         detail: { anonymized: true },
       })
-      .where(lt(auditEvents.at, cutoff))
+      .where(and(...conditions))
       .returning({ id: auditEvents.id });
     return rows.length;
   }
@@ -215,6 +230,7 @@ interface CandidateRow {
   screening: ScreeningResult | null;
   review: ReviewDecision | null;
   aiNoticeDisclosedAt: string | null;
+  dispute: DisputeRecord | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -262,6 +278,7 @@ function candidateToRow(candidate: Candidate): CandidateRow {
     screening: candidate.screening,
     review: candidate.review,
     aiNoticeDisclosedAt: candidate.aiNoticeDisclosedAt,
+    dispute: candidate.dispute,
     createdAt: candidate.createdAt,
     updatedAt: candidate.updatedAt,
   };
@@ -278,6 +295,7 @@ function rowToCandidate(row: CandidateRow): Candidate {
     screening: row.screening,
     review: row.review,
     aiNoticeDisclosedAt: row.aiNoticeDisclosedAt,
+    dispute: row.dispute,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
