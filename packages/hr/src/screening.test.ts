@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createGateway, createFakeProvider } from "@dsrvm/ai";
+import { createGateway, createFakeProvider, type LlmProvider } from "@dsrvm/ai";
 import { createScreeningEngine, SCREENING_PROMPT } from "./screening.js";
 import type { Candidate, RoleProfile } from "./types.js";
 
@@ -10,6 +10,31 @@ function fakeGateway(output: string) {
       activeProvider: "fake",
     },
   );
+}
+
+function capturingGateway(onPrompt: (prompt: string) => void) {
+  const provider: LlmProvider = {
+    name: "capture",
+    async complete(request) {
+      const prompt = request.messages
+        .map((message) => message.content)
+        .join("\n");
+      onPrompt(prompt);
+      return {
+        provider: "capture",
+        model: "capture-model",
+        text: JSON.stringify({
+          score: 60,
+          recommendation: "advance",
+          summary: "ok",
+          strengths: [],
+          flags: [],
+        }),
+        usage: { inputTokens: prompt.length, outputTokens: 0 },
+      };
+    },
+  };
+  return createGateway([provider], { activeProvider: "capture" });
 }
 
 const role: RoleProfile = {
@@ -31,6 +56,7 @@ const candidate: Candidate = {
   review: null,
   aiNoticeDisclosedAt: new Date().toISOString(),
   dispute: null,
+  enrichment: null,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -83,5 +109,41 @@ describe("screening engine", () => {
     const gateway = fakeGateway("not json at all");
     const engine = createScreeningEngine(gateway);
     await expect(engine.screen(role, candidate)).rejects.toThrow();
+  });
+
+  it("consumes CareerForge-style enrichment as context when present", async () => {
+    let prompt = "";
+    const engine = createScreeningEngine(
+      capturingGateway((captured) => {
+        prompt = captured;
+      }),
+    );
+    const enrichedCandidate: Candidate = {
+      ...candidate,
+      enrichment: {
+        score: 87,
+        pii: ["email", "phone"],
+        source: "careerforge",
+      },
+    };
+    const result = await engine.screen(role, enrichedCandidate);
+
+    expect(prompt).toContain("careerforge candidate score");
+    expect(prompt).toContain("87/100");
+    expect(prompt).toContain("email, phone");
+    expect(prompt).toContain("Treat as context only");
+    expect(result.score).toBe(60);
+  });
+
+  it("omits the enrichment block when no enrichment is attached", async () => {
+    let prompt = "";
+    const engine = createScreeningEngine(
+      capturingGateway((captured) => {
+        prompt = captured;
+      }),
+    );
+    await engine.screen(role, candidate);
+
+    expect(prompt).not.toContain("External enrichment");
   });
 });

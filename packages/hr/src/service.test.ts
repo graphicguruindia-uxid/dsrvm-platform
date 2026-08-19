@@ -200,6 +200,7 @@ describe("HrService pipeline", () => {
       review: null,
       aiNoticeDisclosedAt: null,
       dispute: null,
+      enrichment: null,
       createdAt: new Date("2026-08-04T00:00:00.000Z").toISOString(),
       updatedAt: new Date("2026-08-04T00:00:00.000Z").toISOString(),
     };
@@ -211,6 +212,84 @@ describe("HrService pipeline", () => {
         reviewer: "hr",
       }),
     ).rejects.toThrow("has not been disclosed the AI transparency notice");
+  });
+
+  it("attaches a CareerForge-style enrichment to a candidate before screening", async () => {
+    const { service } = buildService();
+    const role = await service.createRole({
+      title: "Engineer",
+      requirements: ["TS"],
+    });
+    const candidate = await service.createCandidate({
+      roleId: role.id,
+      name: "Eve",
+      email: "eve@example.com",
+      resumeText: "TS and AI pipelines.",
+    });
+
+    const enriched = await service.enrichCandidate(candidate.id, {
+      score: 87,
+      pii: ["email", "phone"],
+      source: "careerforge",
+    });
+    expect(enriched.enrichment).toEqual({
+      score: 87,
+      pii: ["email", "phone"],
+      source: "careerforge",
+    });
+
+    const audit = await service.auditLog();
+    const enrichedEvent = audit.find(
+      (event) =>
+        event.action === "candidate.enriched" &&
+        event.candidateId === candidate.id,
+    );
+    expect(enrichedEvent?.detail).toMatchObject({
+      score: 87,
+      pii: ["email", "phone"],
+      source: "careerforge",
+    });
+  });
+
+  it("clamps enrichment score and dedupes pii flags", async () => {
+    const { service } = buildService();
+    const role = await service.createRole({
+      title: "Engineer",
+      requirements: ["TS"],
+    });
+    const candidate = await service.createCandidate({
+      roleId: role.id,
+      name: "Frank",
+      email: "frank@example.com",
+      resumeText: "TS.",
+    });
+
+    const enriched = await service.enrichCandidate(candidate.id, {
+      score: 150,
+      pii: ["phone", "phone", "", "email"],
+    });
+    expect(enriched.enrichment?.score).toBe(100);
+    expect(enriched.enrichment?.pii).toEqual(["email", "phone"]);
+    expect(enriched.enrichment?.source).toBeUndefined();
+  });
+
+  it("refuses enrichment after screening has begun", async () => {
+    const { service } = buildService();
+    const role = await service.createRole({
+      title: "Engineer",
+      requirements: ["TS"],
+    });
+    const candidate = await service.createCandidate({
+      roleId: role.id,
+      name: "Grace",
+      email: "grace@example.com",
+      resumeText: "TS.",
+    });
+    await service.screenCandidate(candidate.id);
+
+    await expect(
+      service.enrichCandidate(candidate.id, { score: 50 }),
+    ).rejects.toThrow("cannot be enriched from status");
   });
 
   it("keeps a full audit trail with candidate ids and details", async () => {

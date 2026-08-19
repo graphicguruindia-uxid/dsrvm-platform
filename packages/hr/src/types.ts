@@ -17,6 +17,12 @@ export interface DisputeRecord {
   note: string | null;
 }
 
+export interface CandidateEnrichment {
+  score: number;
+  pii: string[];
+  source?: string;
+}
+
 export interface Candidate {
   id: string;
   roleId: string;
@@ -28,6 +34,7 @@ export interface Candidate {
   review: ReviewDecision | null;
   aiNoticeDisclosedAt: string | null;
   dispute: DisputeRecord | null;
+  enrichment: CandidateEnrichment | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,6 +79,12 @@ export interface CreateCandidateInput {
   name: string;
   email: string;
   resumeText: string;
+}
+
+export interface EnrichCandidateInput {
+  score: number;
+  pii?: string[];
+  source?: string;
 }
 
 export interface ReviewInput {

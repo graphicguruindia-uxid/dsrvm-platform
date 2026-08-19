@@ -1,5 +1,6 @@
 import { index, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import type {
+  CandidateEnrichment,
   ScreeningResult,
   ReviewDecision,
   DisputeRecord,
@@ -24,6 +25,7 @@ export const candidates = pgTable("candidates", {
   review: jsonb("review").$type<ReviewDecision | null>(),
   aiNoticeDisclosedAt: text("ai_notice_disclosed_at"),
   dispute: jsonb("dispute").$type<DisputeRecord | null>(),
+  enrichment: jsonb("enrichment").$type<CandidateEnrichment | null>(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

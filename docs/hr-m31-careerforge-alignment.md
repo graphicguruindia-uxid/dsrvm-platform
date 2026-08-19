@@ -30,6 +30,13 @@ The two are complementary, not duplicative: CareerForge = candidate self-serve c
 - `server/test/ai.test.js` + `server/test/engine.test.js` — 14 node:test cases (zero new deps).
 - `package.json` — `npm test` = `node --test`.
 
+**`@dsrvm/hr` (monorepo, follow-up #2)**
+- `CandidateEnrichment` type + `Candidate.enrichment` in `packages/hr/src/types.ts`: `{ score: number; pii: string[]; source?: string }`.
+- `HrService.enrichCandidate(id, input)` in `packages/hr/src/service.ts` — accepts a CareerForge-style score (0-100) + PII flags (`email`/`phone`/`NI`/`postcode`, matching `detectPii`), clamps the score, dedupes/sorts the flags, audits `candidate.enriched`. Guarded to the `pending_screening` state only.
+- `createScreeningEngine` in `packages/hr/src/screening.ts` — `screen()` now consumes `candidate.enrichment` when present: appends an "External enrichment (<source> candidate score): X/100. PII detected… Treat as context only" block to the prompt. Prompt template stays v1, so the bias gate and existing renders are unchanged.
+- `enrichment` jsonb column in `packages/hr/src/db/schema.ts` + `pg-store.ts` row mapping (round-trips through real Postgres).
+- Tests: `service.test.ts` (enrich + clamp/dedupe + state guard + audit), `screening.test.ts` (enrichment context present/absent in prompt), `db/pg-store.test.ts` (jsonb round-trip). hr suite 47/47 green.
+
 **Deploy/infra (CareerForge)**
 - `fly.toml` — Fly.io service (internal port 3001, health check `/api/health`, `careerforge_data` volume at `/app/data` for SQLite, primary region `lhr`), per the DSRA-4 CEO stack call (Fly services + Vercel web for the company site).
 - `.github/workflows/deploy.yml` — `flyctl deploy --remote-only` on `main` using a `FLY_API_TOKEN` secret.
@@ -44,5 +51,5 @@ The two are complementary, not duplicative: CareerForge = candidate self-serve c
 ## Follow-ups (next slices)
 
 1. Candidate-facing UI toggle for the AI upgrade (use `/api/ai/complete` for cover-letter/CV drafting when available).
-2. A `@dsrvm/hr` enrichment hook that consumes a CareerForge-style candidate score/PII during screening.
+2. ~~A `@dsrvm/hr` enrichment hook that consumes a CareerForge-style candidate score/PII during screening.~~ **DONE** — shipped in monorepo (see Enhancements shipped), hr suite 47/47 green.
 3. Fly launch against the board repo + DNS for `dsrvmltd.co.uk/careerforge/` (needs deploy creds / domain access).

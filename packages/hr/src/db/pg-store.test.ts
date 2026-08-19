@@ -29,6 +29,7 @@ CREATE TABLE candidates (
   review jsonb,
   ai_notice_disclosed_at text,
   dispute jsonb,
+  enrichment jsonb,
   created_at text NOT NULL,
   updated_at text NOT NULL
 );
@@ -359,6 +360,39 @@ describe("PgStore persistence (pglite)", () => {
     expect(expired?.detail).toEqual({ anonymized: true });
   });
 
+  it("round-trips a CareerForge-style enrichment through real Postgres", async () => {
+    const service = buildService(store);
+    const role = await service.createRole({
+      title: "Engineer",
+      requirements: ["TS"],
+    });
+    const candidate = await service.createCandidate({
+      roleId: role.id,
+      name: "Han",
+      email: "han@example.com",
+      resumeText: "TS.",
+    });
+
+    const enriched = await service.enrichCandidate(candidate.id, {
+      score: 91,
+      pii: ["email", "postcode"],
+      source: "careerforge",
+    });
+    expect(enriched.enrichment).toEqual({
+      score: 91,
+      pii: ["email", "postcode"],
+      source: "careerforge",
+    });
+
+    const fetched = await store.candidates.get(candidate.id);
+    expect(fetched?.enrichment).toEqual({
+      score: 91,
+      pii: ["email", "postcode"],
+      source: "careerforge",
+    });
+    expect(fetched?.dispute).toBeNull();
+  });
+
   it("throws on updating a missing candidate", async () => {
     await expect(
       store.candidates.update({
@@ -372,6 +406,7 @@ describe("PgStore persistence (pglite)", () => {
         review: null,
         aiNoticeDisclosedAt: null,
         dispute: null,
+        enrichment: null,
         createdAt: AT,
         updatedAt: AT,
       }),

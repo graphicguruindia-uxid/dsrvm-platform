@@ -6,6 +6,7 @@ import pg from "pg";
 import type {
   AuditEvent,
   Candidate,
+  CandidateEnrichment,
   CandidateStatus,
   DisputeRecord,
   OutboxEvent,
@@ -231,6 +232,7 @@ interface CandidateRow {
   review: ReviewDecision | null;
   aiNoticeDisclosedAt: string | null;
   dispute: DisputeRecord | null;
+  enrichment: CandidateEnrichment | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -279,6 +281,7 @@ function candidateToRow(candidate: Candidate): CandidateRow {
     review: candidate.review,
     aiNoticeDisclosedAt: candidate.aiNoticeDisclosedAt,
     dispute: candidate.dispute,
+    enrichment: candidate.enrichment,
     createdAt: candidate.createdAt,
     updatedAt: candidate.updatedAt,
   };
@@ -296,6 +299,7 @@ function rowToCandidate(row: CandidateRow): Candidate {
     review: row.review,
     aiNoticeDisclosedAt: row.aiNoticeDisclosedAt,
     dispute: row.dispute,
+    enrichment: row.enrichment,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

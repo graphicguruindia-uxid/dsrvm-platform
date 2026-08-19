@@ -3,6 +3,7 @@ import type {
   AuditEvent,
   Candidate,
   CreateCandidateInput,
+  EnrichCandidateInput,
   OutboxEvent,
   ReviewInput,
   RoleProfile,
@@ -99,6 +100,7 @@ export class HrService {
       review: null,
       aiNoticeDisclosedAt: timestamp,
       dispute: null,
+      enrichment: null,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -159,6 +161,37 @@ export class HrService {
         score: screening.score,
         recommendation: screening.recommendation,
         flags: screening.flags,
+      }),
+    );
+    return updated;
+  }
+
+  async enrichCandidate(
+    id: string,
+    input: EnrichCandidateInput,
+  ): Promise<Candidate> {
+    const candidate = await this.requireCandidate(id);
+    if (candidate.status !== "pending_screening") {
+      throw new Error(
+        `candidate "${id}" cannot be enriched from status "${candidate.status}"`,
+      );
+    }
+    const enrichment = {
+      score: clampEnrichmentScore(input.score),
+      pii: dedupePii(input.pii ?? []),
+      ...(input.source ? { source: input.source } : {}),
+    };
+    const updated: Candidate = {
+      ...candidate,
+      enrichment,
+      updatedAt: this.now().toISOString(),
+    };
+    await this.store.candidates.update(updated);
+    await this.store.audit.append(
+      this.auditEvent(candidate.id, "candidate.enriched", {
+        score: enrichment.score,
+        pii: enrichment.pii,
+        source: enrichment.source ?? null,
       }),
     );
     return updated;
@@ -366,4 +399,13 @@ export class HrService {
       at: this.now().toISOString(),
     };
   }
+}
+
+function clampEnrichmentScore(score: number): number {
+  if (!Number.isFinite(score)) return 0;
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function dedupePii(pii: string[]): string[] {
+  return [...new Set(pii.map((flag) => flag.trim()).filter(Boolean))].sort();
 }

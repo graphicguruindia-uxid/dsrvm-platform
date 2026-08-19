@@ -65,12 +65,24 @@ export function createScreeningEngine(gateway: LlmGateway): ScreeningEngine {
       candidate: Candidate,
     ): Promise<ScreeningResult> {
       const prompt = registry.latest("screening");
-      const userContent = renderPrompt(prompt, {
+      let userContent = renderPrompt(prompt, {
         roleTitle: role.title,
         requirements: role.requirements.join(", "),
         niceToHave: role.niceToHave.join(", "),
         resume: candidate.resumeText,
       });
+
+      if (candidate.enrichment) {
+        const { score, pii, source } = candidate.enrichment;
+        const flags = pii.length > 0 ? pii.join(", ") : "none";
+        const origin = source
+          ? `${source} candidate score`
+          : "External candidate score";
+        userContent +=
+          `\n\nExternal enrichment (${origin}): ${score}/100. ` +
+          `PII detected in resume: ${flags}. Treat as context only; ` +
+          "base the recommendation on the resume content itself.";
+      }
 
       const { data } = await generateStructured<StructuredScreening>(
         gateway,

@@ -68,6 +68,7 @@ export async function runBiasGate(
           review: null,
           aiNoticeDisclosedAt: new Date().toISOString(),
           dispute: null,
+          enrichment: null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
