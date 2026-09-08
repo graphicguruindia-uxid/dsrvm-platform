@@ -32,7 +32,7 @@ below make the processing proportionate.
    Postgres via Drizzle (`packages/db`).
 3. **AI screening** (`screening.ts` via `packages/ai` gateway): model scores candidate against
    role `requirements`/`niceToHave`, producing `ScreeningResult { score, recommendation
-   (advance|reject|needs_review), summary, strengths, flags, provider, model, screenedAt }`.
+(advance|reject|needs_review), summary, strengths, flags, provider, model, screenedAt }`.
 4. **Human review** (`ReviewDecision { approved, reviewer, note, decidedAt }`): reviewer
    UI/API (`apps/hr-automation`). Human decision is the decision that counts. Screening
    output is a recommendation, not a final decision.
@@ -84,27 +84,28 @@ below make the processing proportionate.
 
 ## 4. Necessity & proportionality
 
-| Control area | Necessity assessment |
-|---|---|
-| Collecting name/email/resume | Necessary to assess suitability for the role; data minimised to what the ATS/client provides. |
-| Automated scoring | Proportionate - it is a *recommendation* gated by mandatory human review (status `pending_review` -> `approved|rejected`). No final decision is automated (GDPR Art 22 compliant design). |
-| Storing screening + review audit events | Necessary for accountability, dispute resolution, and (upcoming) bias testing. |
-| Third-party model call | The screening model is called over the network; resume text leaves DSRVM infra. Acceptable only with vendor due diligence + DPA + no-training commitment; local Ollama is the fallback for sensitive clients. |
+| Control area                            | Necessity assessment                                                                                                                                                                                          |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Collecting name/email/resume            | Necessary to assess suitability for the role; data minimised to what the ATS/client provides.                                                                                                                 |
+| Automated scoring                       | Proportionate - it is a _recommendation_ gated by mandatory human review (status `pending_review` -> `approved                                                                                                | rejected`). No final decision is automated (GDPR Art 22 compliant design). |
+| Storing screening + review audit events | Necessary for accountability, dispute resolution, and (upcoming) bias testing.                                                                                                                                |
+| Third-party model call                  | The screening model is called over the network; resume text leaves DSRVM infra. Acceptable only with vendor due diligence + DPA + no-training commitment; local Ollama is the fallback for sensitive clients. |
 
 ## 5. Risk assessment
 
-| # | Risk | Likelihood | Impact | Controls (implemented / planned) | Residual |
-|---|---|---|---|---|---|
-| R1 | Bias / disparate impact in scoring (protected characteristics in resumes) | Medium | High | Eval harness (existing); G7 planned: protected-group bias tests + documented test protocol; human review as override; review-flag escalation (`needs_review` path) | Medium-Low |
-| R2 | Discrimination complaints from rejected candidates | Medium | High | Art 22 compliant human review, audit trail of decision + reviewer note, candidate transparency notice, right to request human review | Medium-Low |
-| R3 | Special category data processed without lawful basis | Medium | High | AUP (DSRA-25) prohibits special-category use without approved protocol; data minimisation in prompts; flag-and-redact guidance for reviewers; no cross-model training | Low |
-| R4 | Unauthorised access / breach of candidate PII | Medium | High | Postgres RBAC-ready design, audit events, secret hygiene (AUP 2.2.1), encryption at rest (AES-256, Neon + host volumes) / in transit (TLS 1.2+, confirmed w/ CTO), vendor DPA/SCC | Low-Medium |
-| R5 | Retention beyond storage limitation | High | Medium | Gap G6: define + implement retention/deletion schedule before production | Medium (open) |
-| R6 | Disclosure failure (candidate not told AI used) | Medium | Medium | Candidate-facing AI-assisted notice + human-review right (G10); AUP 4 | Low |
-| R7 | Provider data misuse / training on candidate data | Low | Medium | Vendor register + DPA/no-training clause (G3, go-live precondition, Anthropic preferred + ZDR); self-hosted Ollama fallback keeps candidate data on DSRVM infra; ROPA P1 records | Low |
-| R8 | Prompt injection via malicious resume text | Low-Medium | Medium | Untrusted resume text treated as data, not instructions (AUP 6); structured outputs + eval harness | Low |
+| #   | Risk                                                                      | Likelihood | Impact | Controls (implemented / planned)                                                                                                                                                  | Residual      |
+| --- | ------------------------------------------------------------------------- | ---------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| R1  | Bias / disparate impact in scoring (protected characteristics in resumes) | Medium     | High   | Eval harness (existing); G7 planned: protected-group bias tests + documented test protocol; human review as override; review-flag escalation (`needs_review` path)                | Medium-Low    |
+| R2  | Discrimination complaints from rejected candidates                        | Medium     | High   | Art 22 compliant human review, audit trail of decision + reviewer note, candidate transparency notice, right to request human review                                              | Medium-Low    |
+| R3  | Special category data processed without lawful basis                      | Medium     | High   | AUP (DSRA-25) prohibits special-category use without approved protocol; data minimisation in prompts; flag-and-redact guidance for reviewers; no cross-model training             | Low           |
+| R4  | Unauthorised access / breach of candidate PII                             | Medium     | High   | Postgres RBAC-ready design, audit events, secret hygiene (AUP 2.2.1), encryption at rest (AES-256, Neon + host volumes) / in transit (TLS 1.2+, confirmed w/ CTO), vendor DPA/SCC | Low-Medium    |
+| R5  | Retention beyond storage limitation                                       | High       | Medium | Gap G6: define + implement retention/deletion schedule before production                                                                                                          | Medium (open) |
+| R6  | Disclosure failure (candidate not told AI used)                           | Medium     | Medium | Candidate-facing AI-assisted notice + human-review right (G10); AUP 4                                                                                                             | Low           |
+| R7  | Provider data misuse / training on candidate data                         | Low        | Medium | Vendor register + DPA/no-training clause (G3, go-live precondition, Anthropic preferred + ZDR); self-hosted Ollama fallback keeps candidate data on DSRVM infra; ROPA P1 records  | Low           |
+| R8  | Prompt injection via malicious resume text                                | Low-Medium | Medium | Untrusted resume text treated as data, not instructions (AUP 6); structured outputs + eval harness                                                                                | Low           |
 
 ### Overall residual risk: Medium-Low (with controls) - processing should proceed only once
+
 P1 gaps (G3 DPA no-training executed, G6 retention) and G7 bias testing are closed. CTO
 confirmation (hosting UK/EEA eu-west-2, encryption AES-256 + TLS, LLM path incl. Ollama)
 received 2026-08-08 (DSRA-37).
@@ -135,12 +136,12 @@ received 2026-08-08 (DSRA-37).
 
 ## 7. Sign-off
 
-| Role | Name | Date | Status |
-|---|---|---|---|
-| AI Governance Officer | b170f5ca | 2026-08-07 | Prepared |
-| CTO (data flow/hosting confirmation) | 0a60ddf9 | 2026-08-08 | Confirmed (DSRA-37) |
-| CEO (sign-off) | 709bb68f | 2026-08-10 | Signed (residual Medium-Low; conditions below) |
-| DPA/ICO consultation | - | - | Only if required |
+| Role                                 | Name     | Date       | Status                                         |
+| ------------------------------------ | -------- | ---------- | ---------------------------------------------- |
+| AI Governance Officer                | b170f5ca | 2026-08-07 | Prepared                                       |
+| CTO (data flow/hosting confirmation) | 0a60ddf9 | 2026-08-08 | Confirmed (DSRA-37)                            |
+| CEO (sign-off)                       | 709bb68f | 2026-08-10 | Signed (residual Medium-Low; conditions below) |
+| DPA/ICO consultation                 | -        | -          | Only if required                               |
 
 ## 8. Review cadence
 

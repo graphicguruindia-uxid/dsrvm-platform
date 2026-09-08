@@ -14,24 +14,24 @@ Referenced by the AUP (Section 9) and AI literacy brief (Section 5) - this makes
 
 ## 2. Incident types
 
-| ID | Type | Example |
-|---|---|---|
-| IT-1 | Bias / disparate-impact event | Screening scores differ materially across protected groups; discrimination complaint; bias-test FAIL (DSRA-29) |
-| IT-2 | Data breach / loss | Candidate/customer PII exposed, leaked, or accessed without authorisation |
-| IT-3 | Disclosure failure | AI interaction not disclosed (call, chat, email, screening) contrary to Art 50 / AUP |
-| IT-4 | Prompt injection | Untrusted content manipulates the model to leak data or take wrong action |
-| IT-5 | Model malfunction / hallucination harm | Wrong recommendation with material consequence; wrong screening action dispatched |
-| IT-6 | Regulatory / legal request | Complaint, SAR, ICO/DPA enquiry, regulator notice involving an AI system |
-| IT-7 | Vendor/provider incident | Model provider breach/outage affecting DSRVM processing |
+| ID   | Type                                   | Example                                                                                                        |
+| ---- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| IT-1 | Bias / disparate-impact event          | Screening scores differ materially across protected groups; discrimination complaint; bias-test FAIL (DSRA-29) |
+| IT-2 | Data breach / loss                     | Candidate/customer PII exposed, leaked, or accessed without authorisation                                      |
+| IT-3 | Disclosure failure                     | AI interaction not disclosed (call, chat, email, screening) contrary to Art 50 / AUP                           |
+| IT-4 | Prompt injection                       | Untrusted content manipulates the model to leak data or take wrong action                                      |
+| IT-5 | Model malfunction / hallucination harm | Wrong recommendation with material consequence; wrong screening action dispatched                              |
+| IT-6 | Regulatory / legal request             | Complaint, SAR, ICO/DPA enquiry, regulator notice involving an AI system                                       |
+| IT-7 | Vendor/provider incident               | Model provider breach/outage affecting DSRVM processing                                                        |
 
 ## 3. Severity levels
 
-| Level | Definition | Examples | Escalation |
-|---|---|---|---|
-| S1 Critical | Actual or likely significant harm to an individual; legal/regulatory breach; breach requiring ICO notification (GDPR Art 33) | PII exposure at scale, discrimination with material impact, undisclosed AI in live service | AI Gov + CEO immediately; ICO within 72h where applicable; consider service pause |
-| S2 High | Likely harm to an individual or clear compliance gap, no proof of material impact yet | Bias-test FAIL pre-release, disclosure failure in a live interaction, isolated data exposure | AI Gov + CEO same day; pause affected model/prompt |
-| S3 Medium | Non-harmful but rule-breaking or concerning behaviour | Hallucination in internal analysis, single opt-out not honoured, telemetry gap | AI Gov within 1 business day; fix + log |
-| S4 Low | Observation/practice improvement, no impact | Prompt drift, eval warning, documentation gap | Log + review at monthly governance check |
+| Level       | Definition                                                                                                                   | Examples                                                                                     | Escalation                                                                        |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| S1 Critical | Actual or likely significant harm to an individual; legal/regulatory breach; breach requiring ICO notification (GDPR Art 33) | PII exposure at scale, discrimination with material impact, undisclosed AI in live service   | AI Gov + CEO immediately; ICO within 72h where applicable; consider service pause |
+| S2 High     | Likely harm to an individual or clear compliance gap, no proof of material impact yet                                        | Bias-test FAIL pre-release, disclosure failure in a live interaction, isolated data exposure | AI Gov + CEO same day; pause affected model/prompt                                |
+| S3 Medium   | Non-harmful but rule-breaking or concerning behaviour                                                                        | Hallucination in internal analysis, single opt-out not honoured, telemetry gap               | AI Gov within 1 business day; fix + log                                           |
+| S4 Low      | Observation/practice improvement, no impact                                                                                  | Prompt drift, eval warning, documentation gap                                                | Log + review at monthly governance check                                          |
 
 ## 4. Response flow
 
@@ -69,9 +69,9 @@ Referenced by the AUP (Section 9) and AI literacy brief (Section 5) - this makes
 
 ## 6. Incident register template
 
-| ID | Date | Type | Severity | Summary | Containment | Root cause | Remediation | Notified (ICO/client) | Status | Owner |
-|---|---|---|---|---|---|---|---|---|---|---|
-| AI-2026-001 |  |  |  |  |  |  |  |  | open |  |
+| ID          | Date | Type | Severity | Summary | Containment | Root cause | Remediation | Notified (ICO/client) | Status | Owner |
+| ----------- | ---- | ---- | -------- | ------- | ----------- | ---------- | ----------- | --------------------- | ------ | ----- |
+| AI-2026-001 |      |      |          |         |             |            |             |                       | open   |       |
 
 Store as a CSV/markdown file in the governance folder; review monthly. S1/S2 must also be
 recorded in the ROPA (DSRA-30) incident notes.

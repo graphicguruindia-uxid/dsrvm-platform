@@ -13,13 +13,13 @@ after the system is placed on the market.
 
 ## 1. System identification
 
-| Field | Content |
-|---|---|
-| Name / version | dsrvm-hr-screening v0.2.0 (packages/hr + packages/ai) |
-| Provider / deployer | DSRVM Ltd |
-| Date placed on market | [FILL: pilot go-live date - not yet placed; pilot pre-production] |
-| Location of system (URL / repo) | Monorepo, `packages/hr` + `packages/ai` + `apps/hr-automation` |
-| Applicable legislation | EU AI Act (high-risk), UK GDPR / EU GDPR, India DPDP Act 2023 |
+| Field                           | Content                                                           |
+| ------------------------------- | ----------------------------------------------------------------- |
+| Name / version                  | dsrvm-hr-screening v0.2.0 (packages/hr + packages/ai)             |
+| Provider / deployer             | DSRVM Ltd                                                         |
+| Date placed on market           | [FILL: pilot go-live date - not yet placed; pilot pre-production] |
+| Location of system (URL / repo) | Monorepo, `packages/hr` + `packages/ai` + `apps/hr-automation`    |
+| Applicable legislation          | EU AI Act (high-risk), UK GDPR / EU GDPR, India DPDP Act 2023     |
 
 ## 2. Intended purpose (Art 11 / Annex IV 1(a))
 
@@ -46,7 +46,7 @@ after the system is placed on the market.
   `PromptRegistry` (versioned, render-time guard on missing variables); structured output
   via `generateStructured` against the `SCREENING_SCHEMA`:
   `ScreeningResult { score, recommendation, summary, strengths, flags, provider, model,
-  screenedAt }`; score clamped 0-100; recommendation restricted to
+screenedAt }`; score clamped 0-100; recommendation restricted to
   advance | reject | needs_review.
 - Data flow and storage: DPIA Sections 2.1-2.4 (UK/EEA hosting eu-west-2, AES-256 at rest,
   TLS 1.2+ in transit, US transit for screening API under DPA+SCCs+ZDR - G3 precondition).
@@ -110,7 +110,7 @@ after the system is placed on the market.
 ## 8. Human oversight measures (Art 14; Annex IV 1(f))
 
 - Reviewer UI (`apps/hr-automation`): `ReviewDecision { approved, reviewer, note,
-  decidedAt }`, mandatory review gate, `needs_review` escalation path; review is blocked
+decidedAt }`, mandatory review gate, `needs_review` escalation path; review is blocked
   until AI notice disclosure is recorded. Reference DPIA Sections 2.1.4 + 6.1.
 
 ## 9. Lifecycle and maintenance (Annex IV 1(g))
@@ -125,7 +125,7 @@ after the system is placed on the market.
 
 ## 10. Change log
 
-| Date | Version | Change | By |
-|---|---|---|---|
-| 2026-08-10 | v1 | Template created | b170f5ca |
-| 2026-08-17 | v1.0 | Engineering sections filled (G8) | 0a60ddf9 |
+| Date       | Version | Change                           | By       |
+| ---------- | ------- | -------------------------------- | -------- |
+| 2026-08-10 | v1      | Template created                 | b170f5ca |
+| 2026-08-17 | v1.0    | Engineering sections filled (G8) | 0a60ddf9 |

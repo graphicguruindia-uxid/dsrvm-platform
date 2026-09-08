@@ -31,7 +31,9 @@ if (SEED) {
     `seeded hr-automation: role ${seeded.roleId}, ${seeded.candidateIds.length} candidates screened`,
   );
   const ref = await seedReference(web.service);
-  console.log(`seeded web: ${ref.tenantIds.length} tenants (acme/beta.dsrvm.app)`);
+  console.log(
+    `seeded web: ${ref.tenantIds.length} tenants (acme/beta.dsrvm.app)`,
+  );
 }
 
 await api.listen({ port: API_PORT, host: "0.0.0.0" });
@@ -44,8 +46,12 @@ if (hr.retention) await hr.retention.start();
 console.log("");
 console.log("=== DSRA-17 localhost staging is LIVE ===");
 console.log(`  api           http://127.0.0.1:${API_PORT}/health`);
-console.log(`  hr-automation http://127.0.0.1:${HR_PORT}/health  (dashboard http://127.0.0.1:${HR_PORT}/)`);
-console.log(`  web           http://127.0.0.1:${WEB_PORT}/health  (dashboard http://127.0.0.1:${WEB_PORT}/)`);
+console.log(
+  `  hr-automation http://127.0.0.1:${HR_PORT}/health  (dashboard http://127.0.0.1:${HR_PORT}/)`,
+);
+console.log(
+  `  web           http://127.0.0.1:${WEB_PORT}/health  (dashboard http://127.0.0.1:${WEB_PORT}/)`,
+);
 console.log("");
 
 const shutdown = async () => {

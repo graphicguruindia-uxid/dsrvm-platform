@@ -23,6 +23,7 @@ unsubscribe@dsrvmltd.co.uk | Privacy: [link to dsrvmltd.co.uk privacy page]
 ```
 
 Rules:
+
 - Use the same footer on LinkedIn messages? Not required - LinkedIn is its own platform
   with its own opt-out; but never message someone after they ask you to stop on any channel.
 - For US-targeted emails (NAMER), also add a physical postal address line (CAN-SPAM):
@@ -32,15 +33,15 @@ Rules:
 
 Complete once per list-batch, store in the governance folder.
 
-| Item | Record |
-|---|---|
-| Purpose | B2B outreach for DSRVM product lines (HR automation, AI consulting, web platform) |
-| Data | Business contact name, title, company, work email/phone, LinkedIn; from network + public signals (news, job posts, company sites) |
+| Item                     | Record                                                                                                                                                                                                                              |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Purpose                  | B2B outreach for DSRVM product lines (HR automation, AI consulting, web platform)                                                                                                                                                   |
+| Data                     | Business contact name, title, company, work email/phone, LinkedIn; from network + public signals (news, job posts, company sites)                                                                                                   |
 | Legitimate interest test | DSRVM's interest: market its services to relevant businesses. Weighing: contacts are professionals acting in business capacity; low privacy impact (business data); contacts can object/opt-out easily; no sensitive data collected |
-| Necessity | Direct outreach is necessary - no less-intrusive equivalent to reach prospective B2B clients |
-| Safeguards | Opt-out footer, immediate suppression, data minimised to business contact fields, no children/special-category data, retention per schedule |
-| Record-keeping | Completed by: ___, date: ___, next review: ___, approved by CEO |
-| Objections | Any objection/opt-out is honoured within [24h] and recorded in crm-tracker.csv (optOut=true) |
+| Necessity                | Direct outreach is necessary - no less-intrusive equivalent to reach prospective B2B clients                                                                                                                                        |
+| Safeguards               | Opt-out footer, immediate suppression, data minimised to business contact fields, no children/special-category data, retention per schedule                                                                                         |
+| Record-keeping           | Completed by: ___, date: ___, next review: ___, approved by CEO                                                                                                                                                                     |
+| Objections               | Any objection/opt-out is honoured within [24h] and recorded in crm-tracker.csv (optOut=true)                                                                                                                                        |
 
 ## 3. CRM opt-out field spec
 
@@ -56,13 +57,13 @@ before each dial.
 
 ## 4. Region compliance matrix
 
-| Region | Email rule | Call rule | Notes |
-|---|---|---|---|
-| UK / EMEA | PECR: cold email to corporate subscribers allowed; individual/sole-trader subscribers need consent or soft opt-in. Include opt-out footer + valid sender. | Cold calls to corporate numbers permitted; identify DSRVM; do not call TPS-registered residential lines. | Primary wave-1; footer + opt-out required. |
-| US (NAMER) | CAN-SPAM: valid postal address in every email + honour opt-outs (10 business days). | TCPA: avoid autodial/AI voice to mobile without consent - AI cold calls to mobile numbers need prior consent. | Add postal address line; verify AI-call consent rules. |
-| Japan (APJ) | Opt-in required for commercial email (Act on Specified Commercial Transactions / APPI). | Consent-based; strict. | Do NOT cold email Japan without opt-in. |
-| India (APAC) | DPDP Act 2023: consent-first; DPDP Rules phased to ~mid-2027 but design consent-first now. | Consent-based. | Treat as opt-in. |
-| UAE / MENA | Respect local e-commerce/telecom rules; Sunday-Thursday windows. | Local licensing for outbound calls may apply. | Coordinate with regional compliance before non-UK dials. |
+| Region       | Email rule                                                                                                                                                | Call rule                                                                                                     | Notes                                                    |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| UK / EMEA    | PECR: cold email to corporate subscribers allowed; individual/sole-trader subscribers need consent or soft opt-in. Include opt-out footer + valid sender. | Cold calls to corporate numbers permitted; identify DSRVM; do not call TPS-registered residential lines.      | Primary wave-1; footer + opt-out required.               |
+| US (NAMER)   | CAN-SPAM: valid postal address in every email + honour opt-outs (10 business days).                                                                       | TCPA: avoid autodial/AI voice to mobile without consent - AI cold calls to mobile numbers need prior consent. | Add postal address line; verify AI-call consent rules.   |
+| Japan (APJ)  | Opt-in required for commercial email (Act on Specified Commercial Transactions / APPI).                                                                   | Consent-based; strict.                                                                                        | Do NOT cold email Japan without opt-in.                  |
+| India (APAC) | DPDP Act 2023: consent-first; DPDP Rules phased to ~mid-2027 but design consent-first now.                                                                | Consent-based.                                                                                                | Treat as opt-in.                                         |
+| UAE / MENA   | Respect local e-commerce/telecom rules; Sunday-Thursday windows.                                                                                          | Local licensing for outbound calls may apply.                                                                 | Coordinate with regional compliance before non-UK dials. |
 
 ## 5. LinkedIn enrichment note (ToS-safe)
 

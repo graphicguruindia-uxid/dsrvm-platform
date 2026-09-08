@@ -43,15 +43,15 @@ audited, and never trained on your data."
 
 ## Client questions & answers (brief)
 
-| Question | Answer |
-|---|---|
-| Does AI decide who gets hired? | No. It recommends; a human reviewer always makes the final call. |
-| Is our data used to train models? | No. DSRVM configures providers with no-training / zero-data-retention terms. |
-| What do candidates know? | They see a plain-language notice and can request human review / explanation. |
-| How do you stop bias? | We test for disparate impact before scaling and on every model/prompt change. |
-| What do we need to do? | Confirm lawful basis, show the notice to candidates, and operate the human-review control. |
-| Where is the data stored? | On DSRVM infrastructure; processing location confirmed with our CTO before the pilot goes live. |
-| What happens on termination? | Data is deleted or returned per the retention/deletion schedule (being finalised - DSRA-25 G6). |
+| Question                          | Answer                                                                                          |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Does AI decide who gets hired?    | No. It recommends; a human reviewer always makes the final call.                                |
+| Is our data used to train models? | No. DSRVM configures providers with no-training / zero-data-retention terms.                    |
+| What do candidates know?          | They see a plain-language notice and can request human review / explanation.                    |
+| How do you stop bias?             | We test for disparate impact before scaling and on every model/prompt change.                   |
+| What do we need to do?            | Confirm lawful basis, show the notice to candidates, and operate the human-review control.      |
+| Where is the data stored?         | On DSRVM infrastructure; processing location confirmed with our CTO before the pilot goes live. |
+| What happens on termination?      | Data is deleted or returned per the retention/deletion schedule (being finalised - DSRA-25 G6). |
 
 ## What to hand to the client after a positive demo
 

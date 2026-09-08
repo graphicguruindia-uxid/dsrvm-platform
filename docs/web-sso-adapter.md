@@ -69,7 +69,7 @@ provider-agnostic pattern already used for AI providers in `@dsrvm/ai`.
 
 ## Production notes / limits
 
-- The SAML signature verifier checks the `SignedInfo` *substring* bytes (works for
+- The SAML signature verifier checks the `SignedInfo` _substring_ bytes (works for
   straightforward IdPs). Spec-canonical XML (C14N) and encrypted assertions need a full SAML
   library (e.g. `@node-rs/xmldsig`); swap the adapter internals, keep the `SsoProvider` seam.
 - SSO provider config is app-level today; per-tenant provider scoping + IdP-initiated (SP/IdP

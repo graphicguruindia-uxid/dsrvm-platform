@@ -12,6 +12,7 @@ data before it enters the domain, so the pilot can import actual ATS exports,
 application emails, and resume files instead of demo seeds.
 
 ### 1. ATS / CSV importer (`src/ingest/csv.ts`)
+
 - Dependency-free CSV parser (quoted fields, escaped quotes, `\r\n`).
 - Auto header mapping for common ATS columns (`Full Name`, `Email Address`,
   `Resume/CV Text`, `Candidate ID`, `Applicant ID`, …), case-insensitive.
@@ -20,12 +21,14 @@ application emails, and resume files instead of demo seeds.
   numbers, so a bad batch never silently drops candidates.
 
 ### 2. Email-to-candidate (`src/ingest/email.ts`)
+
 - RFC822-lite parser: `From:` (display name + angle-bracket address), `Subject:`,
   and body separated by a blank line.
 - Extracts candidate `name` + `email` from the `From:` header; body becomes the
   resume text (after normalisation); optional `defaultRoleId`.
 
 ### 3. Resume text extraction + PII hygiene (`src/ingest/resume.ts`)
+
 - Normalisation: strips HTML tags, markdown syntax and link targets, collapses
   whitespace, trims, truncates to `maxLength` (default 20k chars).
 - PII detection returns categories (`email`, `phone`, `national_insurance`,
@@ -33,6 +36,7 @@ application emails, and resume files instead of demo seeds.
   screening still runs on the cleaned text.
 
 ### 4. `CandidateIngestor` service (`src/ingest/service.ts`)
+
 - `importCsv(text, {mapping})` and `importEmail({raw, defaultRoleId})` parse +
   create candidates in one call.
 - Dedupe by email (case-insensitive) against existing candidates and within the

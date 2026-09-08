@@ -19,6 +19,7 @@ Strengths: strong AI/enterprise/ITSM messaging; HR themes already present in cas
 and contact meta; SEO plumbing (robots, sitemap, Bing/Google verification) in place.
 
 Gaps found:
+
 1. **Security — credential committed.** The `CNAME` file carried a plaintext hosting
    control-panel password. Removed from the file and from the pushed commit. The credential
    is still in git history → **must be rotated** at the hosting/registrar account.
@@ -70,7 +71,7 @@ Files are UTF-8 throughout (no encoding corruption; earlier mojibake was a conso
 ## Deployment wiring
 
 - Vercel is the target per the DSRA-4 stack decision. Import
-  `graphicguruindia-uxid/dsrvmltd` → Framework: *Other* → add `www.dsrvmltd.co.uk` (+ apex)
+  `graphicguruindia-uxid/dsrvmltd` → Framework: _Other_ → add `www.dsrvmltd.co.uk` (+ apex)
   in Domains. Steps + DNS records in `docs/DEPLOYMENT.md`.
 - DSRA-4 (deploy credentials) is the remaining blocker for actual go-live of the new deploy
   pipeline; the repo itself is deploy-ready and pushed.
@@ -80,7 +81,7 @@ Files are UTF-8 throughout (no encoding corruption; earlier mojibake was a conso
 ## Follow-ups
 
 1. Rotate the hosting control-panel credential that was previously committed in `CNAME`.
-2. Confirm the live EmailJS dashboard *template* `To Email` field is `info@dsrvmltd.co.uk`
+2. Confirm the live EmailJS dashboard _template_ `To Email` field is `info@dsrvmltd.co.uk`
    (code + setup notes now aligned; dashboard setting is the last link).
 3. Optional GitHub Action: run `npm test` on PRs (static, no build required).
 4. Later: consider a `careerforge` landing surface once the product is deployed.

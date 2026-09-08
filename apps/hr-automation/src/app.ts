@@ -40,6 +40,7 @@ export interface ReviewerAppOptions {
   anthropicApiKey?: string;
   openAiApiKey?: string;
   databaseUrl?: string;
+  apiToken?: string;
   signal?: AbortSignal;
   now?: () => Date;
   logger?: (message: string) => void;
@@ -106,7 +107,11 @@ export function createReviewerApp(
     counter: (name, by, tags) => registry.counter(name, by, tags),
     report: () => summarize(registry, usage, now),
   };
-  const { server } = buildReviewerServer(hr, { telemetry }, ingestor);
+  const { server } = buildReviewerServer(
+    hr,
+    { telemetry, apiToken: options.apiToken },
+    ingestor,
+  );
   return {
     server,
     hr,

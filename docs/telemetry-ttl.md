@@ -37,8 +37,8 @@ When `ttlMs > 0`:
 
 ## Configuration reference
 
-| Env var | Type | Default | Meaning |
-|---|---|---|---|
+| Env var            | Type        | Default | Meaning                                  |
+| ------------------ | ----------- | ------- | ---------------------------------------- |
 | `TELEMETRY_TTL_MS` | number (ms) | 90 days | Expire telemetry/metrics older than this |
 
 ## Tests
@@ -49,7 +49,7 @@ When `ttlMs > 0`:
 
 ## Notes
 
-- This covers the *in-memory* aggregation window per ROPA. A durable sink
+- This covers the _in-memory_ aggregation window per ROPA. A durable sink
   (e.g. `JsonlFileSink`) retains files per its own file lifecycle; the 90-day
   schedule for persisted telemetry is governed by the storage/backup policy.
 - The outbox/candidate/audit side of G6 is implemented in `@dsrvm/hr`

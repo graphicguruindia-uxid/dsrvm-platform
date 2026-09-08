@@ -15,6 +15,7 @@
     "bias:gate": "pnpm build && pnpm exec tsx scripts/bias-gate.mts",
     "qa": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm qa:smoke",
     "staging:local": "pnpm build && pnpm exec tsx scripts/run-local.mts",
+    "kv:upload": "pnpm exec tsx scripts/kv-upload-runbooks.mts",
     "format": "prettier --write ."
   },
   "devDependencies": {

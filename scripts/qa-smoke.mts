@@ -413,6 +413,73 @@ async function main() {
     await app.close();
   }
 
+  console.log("=== HR auth gate (T28) ===");
+  {
+    const app = createReviewerApp({ provider: "demo", apiToken: "smoke-token-123" });
+    const { server } = app;
+
+    const healthNoAuth = await call(server, { method: "GET", url: "/health" });
+    check(
+      "T28: GET /health (no token) -> 200 (health is exempt from auth)",
+      healthNoAuth.statusCode === 200,
+      healthNoAuth.json(),
+    );
+
+    const dashNoAuth = await call(server, { method: "GET", url: "/" });
+    check(
+      "T28: GET / (no token) -> 200 (dashboard is exempt from auth)",
+      dashNoAuth.statusCode === 200 && String(dashNoAuth.body).includes("<html"),
+      dashNoAuth.statusCode,
+    );
+
+    const rolesNoAuth = await call(server, { method: "GET", url: "/api/roles" });
+    check(
+      "T28: GET /api/roles (no token) -> 401",
+      rolesNoAuth.statusCode === 401,
+      rolesNoAuth.json(),
+    );
+
+    const rolesBadToken = await call(server, {
+      method: "GET",
+      url: "/api/roles",
+      headers: { authorization: "Bearer wrong-token" },
+    });
+    check(
+      "T28: GET /api/roles (wrong token) -> 403",
+      rolesBadToken.statusCode === 403,
+      rolesBadToken.json(),
+    );
+
+    const rolesGoodToken = await call(server, {
+      method: "GET",
+      url: "/api/roles",
+      headers: { authorization: "Bearer smoke-token-123" },
+    });
+    check(
+      "T28: GET /api/roles (valid token) -> 200",
+      rolesGoodToken.statusCode === 200,
+      rolesGoodToken.json(),
+    );
+
+    const openApiSpec = await call(server, {
+      method: "GET",
+      url: "/openapi.json",
+      headers: { authorization: "Bearer smoke-token-123" },
+    });
+    const spec = openApiSpec.json();
+    check(
+      "T27: GET /openapi.json -> 200 with valid OpenAPI spec",
+      openApiSpec.statusCode === 200 &&
+        spec.openapi === "3.0.3" &&
+        spec.info?.title?.includes("HR") &&
+        spec.paths?.["/api/roles"] &&
+        spec.paths?.["/api/candidates"],
+      spec,
+    );
+
+    await app.close();
+  }
+
   console.log("=== Web reference app (apps/web) ===");
   {
     const app = createWebReferenceApp({
@@ -888,7 +955,11 @@ async function main() {
       bias.screened >= 400 && bias.metrics.length >= 3,
       bias,
     );
-    check("G7: bias gate passes on the deterministic demo provider", bias.level === "PASS", bias);
+    check(
+      "G7: bias gate passes on the deterministic demo provider",
+      bias.level === "PASS",
+      bias,
+    );
   }
 
   console.log("");

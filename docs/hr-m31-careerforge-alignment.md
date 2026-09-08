@@ -20,9 +20,11 @@ The two are complementary, not duplicative: CareerForge = candidate self-serve c
 ## Enhancements shipped
 
 **`@dsrvm/ai` (monorepo)**
+
 - `createOllamaProvider()` in `packages/ai/src/providers/ollama.ts` — OpenAI-compatible provider defaulting to `http://localhost:11434/v1` + `llama3.2`, env `OLLAMA_BASE_URL`/`OLLAMA_MODEL`/`OLLAMA_API_KEY`. Exported from `providers/index.ts`. 4 unit tests (payload shape, defaults, error mapping, per-request model/format). The gateway now genuinely supports the Ollama↔provider swap.
 
 **CareerForge repo**
+
 - `server/src/ai.js` — gateway seam mirroring `@dsrvm/ai`: `AI_MODE=auto|local|ollama|openai` (+ `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`, `AI_TIMEOUT_MS`); `auto` resolves Ollama if a base URL is set, else OpenAI if a key is set, else local. `aiComplete()` returns the `CompletionResponse` shape; local/unreachable AI degrades gracefully (HTTP 200 `{available:false}`) so the app never bricks.
 - `server/src/index.js` — `GET /api/ai/status`, `POST /api/ai/complete` (400 on bad body, 502 on provider errors).
 - `client/src/lib/api.js` — `aiStatus()`, `aiComplete()`.
@@ -38,6 +40,7 @@ The two are complementary, not duplicative: CareerForge = candidate self-serve c
 - Tests: `service.test.ts` (enrich + clamp/dedupe + state guard + audit), `screening.test.ts` (enrichment context present/absent in prompt), `db/pg-store.test.ts` (jsonb round-trip). hr suite 47/47 green.
 
 **Deploy/infra (CareerForge)**
+
 - `fly.toml` — Fly.io service (internal port 3001, health check `/api/health`, `careerforge_data` volume at `/app/data` for SQLite, primary region `lhr`), per the DSRA-4 CEO stack call (Fly services + Vercel web for the company site).
 - `.github/workflows/deploy.yml` — `flyctl deploy --remote-only` on `main` using a `FLY_API_TOKEN` secret.
 - `.dockerignore` — excludes host `node_modules`/`dist`/`data` so the multi-stage Docker build is reproducible (was a latent breakage).

@@ -16,14 +16,14 @@ DSRVM is a UK company ("provider" of AI systems and "data controller"/"data fidu
 for customer data). Applicability depends on (a) where DSRVM operates, (b) where DSRVM's
 users/data subjects are located, and (c) what the AI system does.
 
-| DSRVM surface | Region (per board/CTO plans) | AI function | High-risk? |
-|---|---|---|---|
-| HR automation (`@dsrvm/hr`, `apps/hr-automation`) | UK first, then EU + global | CV screening, candidate scoring, summarise, routing recommendations | **YES - EU AI Act Annex III(4)** (recruitment, CV screening, candidate evaluation) |
-| AI recruiting platform (DSRA-22) | India/UAE + SMBs, global | AI sourcing, scoring, matching, outreach | **YES - EU AI Act Annex III(4)** if EU users; India DPDP + IT Rules; UAE PDP Law (2021, enforced 2024) |
-| Enterprise web ref arch (`apps/web`) | Global (white-label) | CMS, SSO, billing - minimal AI | No (not an AI system in the AI Act sense unless embedded) |
-| AI delivery kit (`@dsrvm/ai`) | DSRVM-internal + client engagements | LLM gateway, evals | Tooling used to build high-risk systems; obligations attach at the system level |
-| Cold Calling agent | UK/global outbound | AI-voice / AI-written outreach | **Not** high-risk, but Article 50 transparency + UK/EU UCPD disclosure apply (AI disclosure mandatory) |
-| Telemetry/usage (`@dsrvm/telemetry`) | All surfaces | Cost/usage metrics | No; but feeds pricing and model-use logging (supporting control) |
+| DSRVM surface                                     | Region (per board/CTO plans)        | AI function                                                         | High-risk?                                                                                             |
+| ------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| HR automation (`@dsrvm/hr`, `apps/hr-automation`) | UK first, then EU + global          | CV screening, candidate scoring, summarise, routing recommendations | **YES - EU AI Act Annex III(4)** (recruitment, CV screening, candidate evaluation)                     |
+| AI recruiting platform (DSRA-22)                  | India/UAE + SMBs, global            | AI sourcing, scoring, matching, outreach                            | **YES - EU AI Act Annex III(4)** if EU users; India DPDP + IT Rules; UAE PDP Law (2021, enforced 2024) |
+| Enterprise web ref arch (`apps/web`)              | Global (white-label)                | CMS, SSO, billing - minimal AI                                      | No (not an AI system in the AI Act sense unless embedded)                                              |
+| AI delivery kit (`@dsrvm/ai`)                     | DSRVM-internal + client engagements | LLM gateway, evals                                                  | Tooling used to build high-risk systems; obligations attach at the system level                        |
+| Cold Calling agent                                | UK/global outbound                  | AI-voice / AI-written outreach                                      | **Not** high-risk, but Article 50 transparency + UK/EU UCPD disclosure apply (AI disclosure mandatory) |
+| Telemetry/usage (`@dsrvm/telemetry`)              | All surfaces                        | Cost/usage metrics                                                  | No; but feeds pricing and model-use logging (supporting control)                                       |
 
 ## 1. EU AI Act (Regulation (EU) 2024/1689)
 

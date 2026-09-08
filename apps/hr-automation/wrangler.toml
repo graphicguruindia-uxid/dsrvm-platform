@@ -6,8 +6,20 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 NODE_ENV = "production"
 
-[env.staging.vars]
-NODE_ENV = "staging"
+[[kv_namespaces]]
+binding = "KV_RUNBOOKS"
+id = "kv_runbooks_placeholder"
 
-[env.production.vars]
-NODE_ENV = "production"
+[env.staging]
+vars = { NODE_ENV = "staging" }
+
+[env.staging.kv_namespaces]
+binding = "KV_RUNBOOKS"
+id = "kv_runbooks_staging"
+
+[env.production]
+vars = { NODE_ENV = "production" }
+
+[env.production.kv_namespaces]
+binding = "KV_RUNBOOKS"
+id = "kv_runbooks_production"

@@ -8,6 +8,7 @@ const signal = new AbortController().signal;
 const app = createReviewerApp({
   provider,
   databaseUrl: process.env.DATABASE_URL,
+  apiToken: process.env.HR_API_TOKEN,
   signal,
   telemetryTtlMs: process.env.TELEMETRY_TTL_MS
     ? Number(process.env.TELEMETRY_TTL_MS)

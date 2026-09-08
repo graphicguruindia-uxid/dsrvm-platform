@@ -11,16 +11,16 @@ versioning, and a regression eval harness.
 
 ## Modules (in `packages/ai`)
 
-| Module | File | What it does |
-|---|---|---|
-| Gateway | `src/gateway.ts` | `createGateway(providers)` - routing, active provider switch, per-call timeout, retries with backoff, `preferProvider` override |
-| Provider abstraction | `src/provider.ts` | `LlmProvider` interface (`complete(request, signal)`) |
-| Anthropic provider | `src/providers/anthropic.ts` | `/v1/messages`, `ANTHROPIC_API_KEY`, JSON-mode via system instruction |
-| OpenAI provider | `src/providers/openai.ts` | `/v1/chat/completions`, `OPENAI_API_KEY`, native `response_format` (json + json_schema) |
-| Fake provider | `src/providers/fake.ts` | deterministic echo/fixed output for tests and local dev |
-| Structured output | `src/structured.ts` | `generateStructured` - JSON schema-typed extraction with retry-on-invalid; `tryParseJson` (tolerates fences), `validateJson` |
-| Prompt versioning | `src/prompts.ts` | `definePrompt` / `renderPrompt` (guards missing vars) / `PromptRegistry` (latest or pinned version) |
-| Eval harness | `src/evals.ts` | `runEvals` - per-case asserts (`contains`, `not_contains`, `exact`, `json_schema`), pass/fail summary, duration |
+| Module               | File                         | What it does                                                                                                                    |
+| -------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Gateway              | `src/gateway.ts`             | `createGateway(providers)` - routing, active provider switch, per-call timeout, retries with backoff, `preferProvider` override |
+| Provider abstraction | `src/provider.ts`            | `LlmProvider` interface (`complete(request, signal)`)                                                                           |
+| Anthropic provider   | `src/providers/anthropic.ts` | `/v1/messages`, `ANTHROPIC_API_KEY`, JSON-mode via system instruction                                                           |
+| OpenAI provider      | `src/providers/openai.ts`    | `/v1/chat/completions`, `OPENAI_API_KEY`, native `response_format` (json + json_schema)                                         |
+| Fake provider        | `src/providers/fake.ts`      | deterministic echo/fixed output for tests and local dev                                                                         |
+| Structured output    | `src/structured.ts`          | `generateStructured` - JSON schema-typed extraction with retry-on-invalid; `tryParseJson` (tolerates fences), `validateJson`    |
+| Prompt versioning    | `src/prompts.ts`             | `definePrompt` / `renderPrompt` (guards missing vars) / `PromptRegistry` (latest or pinned version)                             |
+| Eval harness         | `src/evals.ts`               | `runEvals` - per-case asserts (`contains`, `not_contains`, `exact`, `json_schema`), pass/fail summary, duration                 |
 
 ## Usage
 
@@ -70,11 +70,11 @@ const summary = await runEvals(gateway, [
 
 ## Configuration
 
-| Env var | Purpose |
-|---|---|
-| `ANTHROPIC_API_KEY` | Anthropic provider credential |
-| `OPENAI_API_KEY` | OpenAI provider credential |
-| `LLM_PROVIDER` | Default active provider name (app code) |
+| Env var             | Purpose                                 |
+| ------------------- | --------------------------------------- |
+| `ANTHROPIC_API_KEY` | Anthropic provider credential           |
+| `OPENAI_API_KEY`    | OpenAI provider credential              |
+| `LLM_PROVIDER`      | Default active provider name (app code) |
 
 ## Definition of Done
 

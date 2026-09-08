@@ -50,11 +50,11 @@ pnpm dev         # run all apps in dev mode
 `pnpm dev` (turbo) boots all three apps with distinct default ports so nothing
 collides (previously api + hr-automation both defaulted to 3001 -> EADDRINUSE):
 
-| App             | Default port | Health check                         |
-| --------------- | ------------ | ------------------------------------ |
-| api             | 8899         | http://127.0.0.1:8899/health         |
-| hr-automation   | 3002         | http://127.0.0.1:3002/health         |
-| web             | 3003         | http://127.0.0.1:3003/health         |
+| App           | Default port | Health check                 |
+| ------------- | ------------ | ---------------------------- |
+| api           | 8899         | http://127.0.0.1:8899/health |
+| hr-automation | 3002         | http://127.0.0.1:3002/health |
+| web           | 3003         | http://127.0.0.1:3003/health |
 
 8899 is the primary dev entry. Override per app with `PORT` (single app) or
 `API_PORT` / `HR_PORT` / `WEB_PORT` (run-local / staging:local). See `.env.example`.

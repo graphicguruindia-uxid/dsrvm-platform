@@ -1,4 +1,9 @@
-async function probe(name: string, w: { fetch(r: Request): Promise<Response> }, url: string, init?: RequestInit) {
+async function probe(
+  name: string,
+  w: { fetch(r: Request): Promise<Response> },
+  url: string,
+  init?: RequestInit,
+) {
   try {
     const res = await w.fetch(new Request(url, init));
     const text = await res.text();
@@ -41,8 +46,13 @@ await probe("hr POST /api/roles", hrWorker, "http://localhost/api/roles", {
   body: JSON.stringify({ title: "QA Engineer", requirements: ["test"] }),
 });
 await probe("web /health", webWorker, "http://localhost/health");
-await probe("web POST /api/tenants", webWorker, "http://localhost/api/tenants", {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ name: "Acme", host: "acme.dsrvm.app" }),
-});
+await probe(
+  "web POST /api/tenants",
+  webWorker,
+  "http://localhost/api/tenants",
+  {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "Acme", host: "acme.dsrvm.app" }),
+  },
+);

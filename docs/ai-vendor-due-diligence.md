@@ -23,6 +23,7 @@ retention?); (3) is there a DPA/SCC path; (4) do they meet EU AI Act + GDPR/DPDP
 ## Register
 
 ### 1. OpenAI (GPT models) - Amber/Green (config-dependent)
+
 - **Data ownership:** OpenAI does not claim ownership of customer inputs/outputs; assigns
   all rights to the customer ("Your Content" clause in API terms).
 - **Data use for training:** By default, OpenAI does NOT train on API/customer content.
@@ -35,6 +36,7 @@ retention?); (3) is there a DPA/SCC path; (4) do they meet EU AI Act + GDPR/DPDP
   consumer/ChatGPT accounts for DSRVM work data (AUP 3.2.4).
 
 ### 2. Anthropic (Claude models) - Amber/Green (config-dependent)
+
 - **Data ownership:** Anthropic does not claim ownership of user content; customer
   retains rights to inputs/outputs.
 - **Data use for training:** Anthropic does NOT train on API customer prompts by default
@@ -46,6 +48,7 @@ retention?); (3) is there a DPA/SCC path; (4) do they meet EU AI Act + GDPR/DPDP
   confirm no-training clause in writing; avoid consumer product for DSRVM data.
 
 ### 3. Google (Gemini / Vertex AI) - Amber
+
 - **Data ownership:** Google Cloud terms give customer ownership of customer data; no
   claim over customer's data.
 - **Data use for training:** Google Cloud AI/Vertex does not use customer data to train
@@ -56,6 +59,7 @@ retention?); (3) is there a DPA/SCC path; (4) do they meet EU AI Act + GDPR/DPDP
   processing terms; execute Cloud DPA.
 
 ### 4. Ollama (local, open-source) - Green
+
 - **Data ownership:** No claim; models run locally, nothing leaves DSRVM infrastructure.
 - **Data use:** No training; no retention; no third-party access. Ideal for sensitive or
   PII workloads where third-party submission must be avoided (AUP 2.3).
@@ -64,6 +68,7 @@ retention?); (3) is there a DPA/SCC path; (4) do they meet EU AI Act + GDPR/DPDP
   the zero-trust option and matches DSRVM's open-source-first posture (CTO AGENTS.md).
 
 ### 5. opencode (coding agent / this agent platform) - Amber
+
 - **Data ownership / processing:** opencode is the agent runtime under which DSRVM agents
   operate; it invokes configured models (opencode/big-pickle etc.) and may send
   prompts/context to model providers. Data handling follows the configured model provider's
@@ -75,6 +80,7 @@ retention?); (3) is there a DPA/SCC path; (4) do they meet EU AI Act + GDPR/DPDP
   opencode, ollama, llmstudio terms.)
 
 ### 6. llmstudio (LM Studio, local) - Green
+
 - **Data ownership:** Local inference tool; models run on DSRVM machines; no cloud data
   exfiltration by default.
 - **Data use:** No training/retention on DSRVM data; local by design.
@@ -82,6 +88,7 @@ retention?); (3) is there a DPA/SCC path; (4) do they meet EU AI Act + GDPR/DPDP
   telemetry does not transmit prompts.
 
 ### 7. Paperclip (platform) - Amber
+
 - **Data ownership/processing:** Paperclip is the coordination platform (boards, issues,
   run logs) - stores company issue/comment/run data. Its ToS was flagged in DSRA-20 as a
   review item (does it claim ownership of proprietary input data?). Review Paperclip
@@ -89,15 +96,15 @@ retention?); (3) is there a DPA/SCC path; (4) do they meet EU AI Act + GDPR/DPDP
 
 ## Consolidated findings
 
-| Provider | Data ownership claim on inputs | Training on customer data (default) | DPA/SCC path | Risk to DSRVM data | Recommendation |
-|---|---|---|---|---|---|
-| OpenAI (API) | No | No | Yes | Low | Use API + ZDR + DPA for PII |
-| Anthropic (API) | No | No | Yes | Low | Prefer for screening; DPA |
-| Google Cloud/Vertex | No | No | Yes | Low-Med | DPA; per-product check |
-| Ollama | No | No | N/A | None | Prefer for sensitive PII |
-| opencode | TBD - review | TBD | TBD | Med | ToS review; secret hygiene |
-| LM Studio | No | No | N/A | None | Fine for local work |
-| Paperclip | TBD - review | TBD | TBD | Med | ToS review (DSRA-20 remit) |
+| Provider            | Data ownership claim on inputs | Training on customer data (default) | DPA/SCC path | Risk to DSRVM data | Recommendation              |
+| ------------------- | ------------------------------ | ----------------------------------- | ------------ | ------------------ | --------------------------- |
+| OpenAI (API)        | No                             | No                                  | Yes          | Low                | Use API + ZDR + DPA for PII |
+| Anthropic (API)     | No                             | No                                  | Yes          | Low                | Prefer for screening; DPA   |
+| Google Cloud/Vertex | No                             | No                                  | Yes          | Low-Med            | DPA; per-product check      |
+| Ollama              | No                             | No                                  | N/A          | None               | Prefer for sensitive PII    |
+| opencode            | TBD - review                   | TBD                                 | TBD          | Med                | ToS review; secret hygiene  |
+| LM Studio           | No                             | No                                  | N/A          | None               | Fine for local work         |
+| Paperclip           | TBD - review                   | TBD                                 | TBD          | Med                | ToS review (DSRA-20 remit)  |
 
 ## Open actions
 
