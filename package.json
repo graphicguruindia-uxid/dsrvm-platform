@@ -19,9 +19,9 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
     "prettier": "^3.0.0",
-    "typescript": "^5.5.0",
-    "tsx": "^4.19.0"
+    "tsx": "^4.19.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.5.0"
   }
 }

@@ -11,12 +11,25 @@ import { createPgStore, type HrDatabase } from "./pg-store.js";
 const AT = "2026-08-04T00:00:00.000Z";
 
 const DDL = `
+CREATE TABLE tenants (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  created_at text NOT NULL
+);
 CREATE TABLE roles (
   id text PRIMARY KEY,
   title text NOT NULL,
   requirements jsonb NOT NULL,
   nice_to_have jsonb NOT NULL,
-  created_at text NOT NULL
+  created_at text NOT NULL,
+  tenant_id text,
+  skills jsonb,
+  experience_min_years integer,
+  experience_max_years integer,
+  budget_min numeric(14, 2),
+  budget_max numeric(14, 2),
+  budget_currency text,
+  updated_at timestamp
 );
 CREATE TABLE candidates (
   id text PRIMARY KEY,
@@ -31,14 +44,16 @@ CREATE TABLE candidates (
   dispute jsonb,
   enrichment jsonb,
   created_at text NOT NULL,
-  updated_at text NOT NULL
+  updated_at text NOT NULL,
+  tenant_id text
 );
 CREATE TABLE audit_events (
   id text PRIMARY KEY,
   candidate_id text,
   action text NOT NULL,
   detail jsonb NOT NULL,
-  at text NOT NULL
+  at text NOT NULL,
+  tenant_id text
 );
 CREATE TABLE outbox_events (
   id text PRIMARY KEY,
@@ -47,10 +62,22 @@ CREATE TABLE outbox_events (
   payload jsonb NOT NULL,
   at text NOT NULL,
   dispatched_at text,
-  claimed_until text
+  claimed_until text,
+  tenant_id text
 );
 CREATE INDEX outbox_pending_idx ON outbox_events (dispatched_at);
 CREATE INDEX outbox_candidate_idx ON outbox_events (candidate_id);
+CREATE TABLE scorecards (
+  id text PRIMARY KEY,
+  candidate_id text NOT NULL,
+  reviewer_id text NOT NULL,
+  reviewer_name text NOT NULL,
+  answers jsonb NOT NULL,
+  overall_score text NOT NULL,
+  created_at text NOT NULL,
+  updated_at text NOT NULL,
+  tenant_id text
+);
 `;
 
 function buildService(store: Store) {
@@ -121,20 +148,22 @@ describe("PgStore persistence (pglite)", () => {
       resumeText: "TypeScript and LLM pipelines for 8 years.",
     });
 
-    const screened = await service.screenCandidate(candidate.id);
-    expect(screened.status).toBe("pending_review");
-    expect(screened.aiNoticeDisclosedAt).toBe(AT);
-    expect(screened.screening?.recommendation).toBe("advance");
-    expect(screened.screening?.strengths).toEqual([
+    expect(candidate.status).toBe("pending_review");
+    expect(candidate.aiNoticeDisclosedAt).toBe(AT);
+    expect(candidate.screening?.recommendation).toBe("advance");
+    expect(candidate.screening?.strengths).toEqual([
       "TypeScript",
       "AI integration",
     ]);
 
-    const approved = await service.reviewCandidate(candidate.id, {
-      approved: true,
-      reviewer: "hr-manager",
-      note: "Looks great",
-    });
+    const { candidate: approved } = await service.reviewCandidate(
+      candidate.id,
+      {
+        approved: true,
+        reviewer: "hr-manager",
+        note: "Looks great",
+      },
+    );
     expect(approved.status).toBe("approved");
 
     const audit = await service.auditLog();
@@ -179,7 +208,6 @@ describe("PgStore persistence (pglite)", () => {
       email: "eve@example.com",
       resumeText: "TypeScript.",
     });
-    await service.screenCandidate(candidate.id);
 
     const secondStore = createPgStore(drizzle(pg) as unknown as HrDatabase);
     const roles = await secondStore.roles.list();
@@ -202,11 +230,13 @@ describe("PgStore persistence (pglite)", () => {
       email: "bob@example.com",
       resumeText: "No Go experience.",
     });
-    await service.screenCandidate(candidate.id);
-    const rejected = await service.reviewCandidate(candidate.id, {
-      approved: false,
-      reviewer: "hr-manager",
-    });
+    const { candidate: rejected } = await service.reviewCandidate(
+      candidate.id,
+      {
+        approved: false,
+        reviewer: "hr-manager",
+      },
+    );
     expect(rejected.status).toBe("rejected");
 
     const dispatched: string[] = [];
@@ -242,7 +272,6 @@ describe("PgStore persistence (pglite)", () => {
       email: "carol@example.com",
       resumeText: "k8s for 5 years.",
     });
-    await service.screenCandidate(candidate.id);
     await service.reviewCandidate(candidate.id, {
       approved: true,
       reviewer: "hr-manager",
@@ -371,6 +400,7 @@ describe("PgStore persistence (pglite)", () => {
       name: "Han",
       email: "han@example.com",
       resumeText: "TS.",
+      autoScreen: false,
     });
 
     const enriched = await service.enrichCandidate(candidate.id, {

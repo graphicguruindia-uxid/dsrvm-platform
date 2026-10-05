@@ -4,12 +4,35 @@ import { seedDemo } from "./seed.js";
 
 const NOW = () => new Date("2026-08-04T00:00:00.000Z");
 
-function build() {
-  return createReviewerApp({ now: NOW });
+async function build() {
+  return await createReviewerApp({ now: NOW });
+}
+
+async function buildTenant() {
+  const app = await build();
+  const res = await app.server.inject({
+    method: "POST",
+    url: "/api/tenants",
+    payload: { name: "Acme" },
+  });
+  const tenantId = res.json().tenant.id as string;
+  return {
+    app,
+    tenantId,
+    inject: (opts: {
+      method: "GET" | "POST" | "PUT" | "DELETE";
+      url: string;
+      payload?: unknown;
+    }) =>
+      app.server.inject({
+        ...opts,
+        headers: { "x-tenant-id": tenantId },
+      } as never),
+  };
 }
 
 async function createRoleAndCandidate(provider: "demo" = "demo") {
-  const app = build();
+  const app = await build();
   const roleRes = await app.server.inject({
     method: "POST",
     url: "/api/roles",
@@ -31,7 +54,7 @@ async function createRoleAndCandidate(provider: "demo" = "demo") {
 
 describe("reviewer server", () => {
   it("exposes a health endpoint", async () => {
-    const app = build();
+    const app = await build();
     const res = await app.server.inject({ method: "GET", url: "/health" });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ status: "ok" });
@@ -39,7 +62,7 @@ describe("reviewer server", () => {
   });
 
   it("serves the reviewer dashboard at /", async () => {
-    const app = build();
+    const app = await build();
     const res = await app.server.inject({ method: "GET", url: "/" });
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toContain("text/html");
@@ -49,7 +72,7 @@ describe("reviewer server", () => {
   });
 
   it("creates a role", async () => {
-    const app = build();
+    const app = await build();
     const res = await app.server.inject({
       method: "POST",
       url: "/api/roles",
@@ -121,7 +144,7 @@ describe("reviewer server", () => {
   });
 
   it("validates payloads and guards transitions", async () => {
-    const app = build();
+    const app = await build();
 
     const missingRole = await app.server.inject({
       method: "POST",
@@ -165,7 +188,7 @@ describe("reviewer server", () => {
   });
 
   it("R6: blocks review with 400 when the AI transparency notice was not disclosed", async () => {
-    const app = build();
+    const app = await build();
     const roleRes = await app.server.inject({
       method: "POST",
       url: "/api/roles",
@@ -211,7 +234,7 @@ describe("reviewer server", () => {
   });
 
   it("seedDemo populates a full review queue via the pipeline", async () => {
-    const app = build();
+    const app = await build();
     const seeded = await seedDemo(app.hr);
     expect(seeded.candidateIds).toHaveLength(4);
 
@@ -229,7 +252,7 @@ describe("reviewer server", () => {
   });
 
   it("imports candidates from csv and email via the ingest endpoint", async () => {
-    const app = build();
+    const app = await build();
     const roleRes = await app.server.inject({
       method: "POST",
       url: "/api/roles",
@@ -328,7 +351,7 @@ describe("reviewer server", () => {
   });
 
   it("covers imported candidates with the notice too (no bypass via ingest)", async () => {
-    const app = build();
+    const app = await build();
     const roleRes = await app.server.inject({
       method: "POST",
       url: "/api/roles",
@@ -366,7 +389,7 @@ describe("reviewer server", () => {
   });
 
   it("exposes the G6 retention cleanup endpoint", async () => {
-    const app = build();
+    const app = await build();
     const res = await app.server.inject({
       method: "POST",
       url: "/api/retention/cleanup",
@@ -382,7 +405,7 @@ describe("reviewer server", () => {
   });
 
   it("rejects an import request with neither csv nor email", async () => {
-    const app = build();
+    const app = await build();
     const res = await app.server.inject({
       method: "POST",
       url: "/api/candidates/import",
@@ -423,6 +446,388 @@ describe("reviewer server", () => {
     expect(report.usage.byModel["demo-v1"]?.calls).toBe(1);
     expect(report.usage.byTag.task?.screening?.calls).toBe(1);
     expect(report.generatedAt).toBe(NOW().toISOString());
+    await app.close();
+  });
+
+  it("POST /api/roles accepts skills as a comma-separated string and echoes budget/experience", async () => {
+    const app = await build();
+    const res = await app.server.inject({
+      method: "POST",
+      url: "/api/roles",
+      payload: {
+        title: "Founding Engineer",
+        requirements: ["TypeScript"],
+        skills: "TypeScript, AI, Node.js,typescript",
+        experienceMinYears: 2,
+        experienceMaxYears: 8,
+        budgetMin: 80000,
+        budgetMax: 120000,
+        budgetCurrency: "USD",
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const { role } = res.json();
+    expect(role.skills).toEqual(["TypeScript", "AI", "Node.js"]);
+    expect(role.experienceMinYears).toBe(2);
+    expect(role.experienceMaxYears).toBe(8);
+    expect(role.budgetMin).toBe(80000);
+    expect(role.budgetMax).toBe(120000);
+    expect(role.budgetCurrency).toBe("USD");
+    expect(role.updatedAt).toBeTruthy();
+    await app.close();
+  });
+
+  it("POST /api/roles rejects invalid experience and budget ranges", async () => {
+    const app = await build();
+    const yearsRes = await app.server.inject({
+      method: "POST",
+      url: "/api/roles",
+      payload: {
+        title: "Founding Engineer",
+        requirements: ["TypeScript"],
+        experienceMinYears: 8,
+        experienceMaxYears: 2,
+      },
+    });
+    expect(yearsRes.statusCode).toBe(400);
+    expect(yearsRes.json().error).toContain("experienceMinYears");
+
+    const budgetRes = await app.server.inject({
+      method: "POST",
+      url: "/api/roles",
+      payload: {
+        title: "Founding Engineer",
+        requirements: ["TypeScript"],
+        budgetMin: 120000,
+        budgetMax: 80000,
+      },
+    });
+    expect(budgetRes.statusCode).toBe(400);
+    expect(budgetRes.json().error).toContain("budgetMin");
+    await app.close();
+  });
+
+  it("PUT /api/roles/:id updates role fields and 404s for unknown ids", async () => {
+    const { app, roleId } = await createRoleAndCandidate();
+    const res = await app.server.inject({
+      method: "PUT",
+      url: `/api/roles/${roleId}`,
+      payload: {
+        title: "Staff Engineer",
+        skills: "TypeScript, Kubernetes",
+        experienceMinYears: 5,
+        experienceMaxYears: 12,
+        budgetCurrency: "EUR",
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const { role } = res.json();
+    expect(role.id).toBe(roleId);
+    expect(role.title).toBe("Staff Engineer");
+    expect(role.skills).toEqual(["TypeScript", "Kubernetes"]);
+    expect(role.experienceMinYears).toBe(5);
+    expect(role.experienceMaxYears).toBe(12);
+    expect(role.budgetCurrency).toBe("EUR");
+
+    const unknown = await app.server.inject({
+      method: "PUT",
+      url: "/api/roles/does-not-exist",
+      payload: { title: "Nope" },
+    });
+    expect(unknown.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("PATCH /api/scorecards/:id recomputes overallScore and 404s for unknown ids", async () => {
+    const { app, candidate } = await createRoleAndCandidate();
+    const submit = await app.server.inject({
+      method: "POST",
+      url: "/api/scorecards",
+      payload: {
+        candidateId: candidate.id,
+        reviewerName: "Jane",
+        answers: [
+          { questionId: "q1", score: 4 },
+          { questionId: "q2", score: 2 },
+        ],
+      },
+    });
+    expect(submit.statusCode).toBe(201);
+    const scorecardId = submit.json().scorecard.id;
+
+    const patch = await app.server.inject({
+      method: "PATCH",
+      url: `/api/scorecards/${scorecardId}`,
+      payload: {
+        reviewerName: "John",
+        answers: [
+          { questionId: "q1", score: 5, comment: "excellent" },
+          { questionId: "q2", score: 3 },
+          { questionId: "q3", score: 4 },
+        ],
+      },
+    });
+    expect(patch.statusCode).toBe(200);
+    const { scorecard } = patch.json();
+    expect(scorecard.reviewerName).toBe("John");
+    expect(scorecard.overallScore).toBe(4);
+    expect(scorecard.answers).toHaveLength(3);
+
+    const unknown = await app.server.inject({
+      method: "PATCH",
+      url: "/api/scorecards/does-not-exist",
+      payload: { reviewerName: "Jane" },
+    });
+    expect(unknown.statusCode).toBe(404);
+
+    const invalid = await app.server.inject({
+      method: "PATCH",
+      url: `/api/scorecards/${scorecardId}`,
+      payload: {
+        answers: [{ questionId: "q1", score: 9 }],
+      },
+    });
+    expect(invalid.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("records candidate.screened, candidate.reviewed, and scorecard.submitted in the audit log", async () => {
+    const { app, candidate } = await createRoleAndCandidate();
+    const events = await app.hr.auditLog();
+    expect(events.map((e) => e.action)).toContain("candidate.screened");
+    const screened = events.find((e) => e.action === "candidate.screened");
+    const screenedDetail = screened?.detail as Record<string, unknown>;
+    expect(typeof screenedDetail.score).toBe("number");
+    expect(["advance", "reject", "needs_review"]).toContain(
+      screenedDetail.recommendation,
+    );
+    expect(screenedDetail.provider).toBeTruthy();
+    expect(screenedDetail.model).toBeTruthy();
+    expect(screenedDetail.roleId).toBeTruthy();
+
+    const reviewRes = await app.server.inject({
+      method: "POST",
+      url: `/api/candidates/${candidate.id}/review`,
+      payload: { approved: true, reviewer: "reviewer@dsrvm" },
+    });
+    expect(reviewRes.statusCode).toBe(200);
+
+    const submit = await app.server.inject({
+      method: "POST",
+      url: "/api/scorecards",
+      payload: {
+        candidateId: candidate.id,
+        reviewerName: "Jane",
+        answers: [{ questionId: "q1", score: 4 }],
+      },
+    });
+    expect(submit.statusCode).toBe(201);
+
+    const after = await app.hr.auditLog();
+    const actions = after.map((e) => e.action);
+    expect(actions).toContain("candidate.reviewed");
+    const reviewed = after.find((e) => e.action === "candidate.reviewed");
+    expect(reviewed?.detail).toMatchObject({
+      approved: true,
+      reviewer: "reviewer@dsrvm",
+      previousStatus: "pending_review",
+      newStatus: "approved",
+    });
+    expect(actions).toContain("scorecard.submitted");
+    const submitted = after.find((e) => e.action === "scorecard.submitted");
+    expect(submitted?.detail).toMatchObject({
+      candidateId: candidate.id,
+      overallScore: 4,
+    });
+    await app.close();
+  });
+});
+
+describe("tenant settings, user access, policies, compliance", () => {
+  it("PUT /api/tenants/:id/settings returns the full tenant, rejects bad residency and unknown tenants", async () => {
+    const { app, tenantId, inject } = await buildTenant();
+
+    const put = await inject({
+      method: "PUT",
+      url: `/api/tenants/${tenantId}/settings`,
+      payload: {
+        workflowStages: ["sourcing", "interview"],
+        dataResidency: "EU",
+        aiComplianceMode: "strict",
+      },
+    });
+    expect(put.statusCode).toBe(200);
+    const { tenant } = put.json();
+    expect(tenant.id).toBe(tenantId);
+    expect(tenant.settings.workflowStages).toEqual(["sourcing", "interview"]);
+    expect(tenant.settings.dataResidency).toBe("EU");
+    expect(tenant.settings.aiComplianceMode).toBe("strict");
+
+    const bad = await inject({
+      method: "PUT",
+      url: `/api/tenants/${tenantId}/settings`,
+      payload: { dataResidency: "MARS" },
+    });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().error).toContain("dataResidency");
+
+    const unknown = await app.server.inject({
+      method: "PUT",
+      url: "/api/tenants/does-not-exist/settings",
+      payload: { dataResidency: "EU" },
+      headers: { "x-tenant-id": tenantId },
+    });
+    expect(unknown.statusCode).toBe(404);
+
+    const get = await inject({
+      method: "GET",
+      url: `/api/tenants/${tenantId}/settings`,
+    });
+    expect(get.statusCode).toBe(200);
+    expect(get.json().settings.dataResidency).toBe("EU");
+
+    await app.close();
+  });
+
+  it("user access lifecycle: create, list, update role, delete, /api/me/access", async () => {
+    const { app, inject } = await buildTenant();
+
+    const created = await inject({
+      method: "POST",
+      url: "/api/user-access",
+      payload: { email: "ada@example.com", role: "recruiter" },
+    });
+    expect(created.statusCode).toBe(201);
+    const userId = created.json().user.id as string;
+    expect(created.json().user.role).toBe("recruiter");
+
+    const dup = await inject({
+      method: "POST",
+      url: "/api/user-access",
+      payload: { email: "ada@example.com", role: "executive" },
+    });
+    expect(dup.statusCode).toBe(400);
+    expect(dup.json().error).toContain("already has access");
+
+    const list = await inject({ method: "GET", url: "/api/user-access" });
+    expect(list.json().users).toHaveLength(1);
+
+    const roleRes = await inject({
+      method: "GET",
+      url: "/api/me/access",
+    });
+    expect(roleRes.statusCode).toBe(200);
+    expect(roleRes.json().role).toBe("recruiter");
+
+    const updated = await inject({
+      method: "PUT",
+      url: `/api/user-access/${userId}`,
+      payload: { role: "hr_admin" },
+    });
+    expect(updated.statusCode).toBe(200);
+    expect(updated.json().user.role).toBe("hr_admin");
+
+    const afterRole = await inject({ method: "GET", url: "/api/me/access" });
+    expect(afterRole.json().role).toBe("hr_admin");
+
+    const deleted = await inject({
+      method: "DELETE",
+      url: `/api/user-access/${userId}`,
+    });
+    expect(deleted.statusCode).toBe(204);
+    expect(deleted.body).toBe("");
+
+    const empty = await inject({ method: "GET", url: "/api/user-access" });
+    expect(empty.json().users).toHaveLength(0);
+
+    const nullRole = await inject({ method: "GET", url: "/api/me/access" });
+    expect(nullRole.json().role).toBeNull();
+
+    await app.close();
+  });
+
+  it("policy lifecycle: create, bump version on content change, delete", async () => {
+    const { app, inject } = await buildTenant();
+
+    const created = await inject({
+      method: "POST",
+      url: "/api/policies",
+      payload: {
+        title: "AI disclosure policy",
+        category: "ai_governance",
+        content: "We disclose AI use.",
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const policyId = created.json().policy.id as string;
+    expect(created.json().policy.version).toBe(1);
+    expect(created.json().policy.active).toBe(true);
+
+    const bumped = await inject({
+      method: "PUT",
+      url: `/api/policies/${policyId}`,
+      payload: { content: "We disclose AI use to all candidates." },
+    });
+    expect(bumped.statusCode).toBe(200);
+    expect(bumped.json().policy.version).toBe(2);
+
+    const deleted = await inject({
+      method: "DELETE",
+      url: `/api/policies/${policyId}`,
+    });
+    expect(deleted.statusCode).toBe(204);
+    expect(deleted.body).toBe("");
+
+    const list = await inject({ method: "GET", url: "/api/policies" });
+    expect(list.json().policies).toHaveLength(0);
+
+    await app.close();
+  });
+
+  it("GET /api/compliance/dashboard returns the compliance summary", async () => {
+    const { app, inject } = await buildTenant();
+
+    const res = await inject({
+      method: "GET",
+      url: "/api/compliance/dashboard",
+    });
+    expect(res.statusCode).toBe(200);
+    const { compliance } = res.json();
+    expect(compliance).toEqual({
+      policiesActive: 0,
+      policiesTotal: 0,
+      complianceMode: "standard",
+      dataResidency: "GLOBAL",
+      aiDisclosureRate: 0,
+      disputesOpen: 0,
+      disputesResolved: 0,
+      workflowStages: [
+        "sourcing",
+        "screening",
+        "interview",
+        "offer",
+        "onboarding",
+      ],
+      flags: ["No active policies configured"],
+    });
+
+    await inject({
+      method: "POST",
+      url: "/api/policies",
+      payload: {
+        title: "AI disclosure policy",
+        category: "ai_governance",
+        content: "We disclose AI use.",
+      },
+    });
+
+    const withPolicy = await inject({
+      method: "GET",
+      url: "/api/compliance/dashboard",
+    });
+    expect(withPolicy.json().compliance.policiesActive).toBe(1);
+    expect(withPolicy.json().compliance.flags).toEqual([]);
+
     await app.close();
   });
 });

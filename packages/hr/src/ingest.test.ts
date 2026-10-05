@@ -10,7 +10,19 @@ import { CandidateIngestor } from "./ingest/service.js";
 
 function buildIngestor() {
   const gateway = createGateway(
-    [createFakeProvider({ name: "fake", echo: false, output: "{}" })],
+    [
+      createFakeProvider({
+        name: "fake",
+        echo: false,
+        output: JSON.stringify({
+          score: 80,
+          recommendation: "advance",
+          summary: "Meets the core requirements.",
+          strengths: ["TypeScript", "AI integration"],
+          flags: [],
+        }),
+      }),
+    ],
     {
       activeProvider: "fake",
     },

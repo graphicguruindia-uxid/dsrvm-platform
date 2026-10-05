@@ -4,7 +4,7 @@ const port = Number(process.env.PORT ?? 8899);
 const app = buildServer();
 
 app
-  .listen({ port, host: "0.0.0.0" })
+  .listen({ port, host: "localhost" })
   .then(() => {
     app.log.info(`api listening on :${port}`);
   })

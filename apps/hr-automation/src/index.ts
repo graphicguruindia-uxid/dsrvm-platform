@@ -5,7 +5,7 @@ const port = Number(process.env.PORT ?? 3002);
 const provider = (process.env.PROVIDER ?? "demo") as ProviderKind;
 
 const signal = new AbortController().signal;
-const app = createReviewerApp({
+const app = await createReviewerApp({
   provider,
   databaseUrl: process.env.DATABASE_URL,
   apiToken: process.env.HR_API_TOKEN,
@@ -22,14 +22,14 @@ if (process.env.SEED_DEMO === "1") {
   );
 }
 
-await app.server.listen({ port, host: "0.0.0.0" });
+await app.server.listen({ port, host: "localhost" });
 if (app.dispatcher) {
   await app.dispatcher.start();
 }
 if (app.retention) {
   await app.retention.start();
 }
-console.log(`HR automation reviewer listening on http://0.0.0.0:${port}`);
+console.log(`HR automation reviewer listening on http://localhost:${port}`);
 
 const shutdown = async () => {
   await app.close();

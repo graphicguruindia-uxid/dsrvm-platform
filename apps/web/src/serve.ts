@@ -14,8 +14,8 @@ if (process.env.SEED_DEMO === "1") {
   );
 }
 
-await app.server.listen({ port, host: "0.0.0.0" });
-console.log(`Web reference listening on http://0.0.0.0:${port}`);
+await app.server.listen({ port, host: "localhost" });
+console.log(`Web reference listening on http://localhost:${port}`);
 
 const shutdown = async () => {
   await app.close();

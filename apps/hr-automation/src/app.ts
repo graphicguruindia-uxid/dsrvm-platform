@@ -17,7 +17,7 @@ import {
 } from "@dsrvm/hr";
 import type { Store } from "@dsrvm/hr";
 import type { OutboxDispatcher } from "@dsrvm/hr";
-import type { RetentionCleaner } from "@dsrvm/hr";
+import type { OutboxEvent, RetentionCleaner } from "@dsrvm/hr";
 import {
   MetricsRegistry,
   createUsageTracker,
@@ -41,6 +41,8 @@ export interface ReviewerAppOptions {
   openAiApiKey?: string;
   databaseUrl?: string;
   apiToken?: string;
+  webhookUrl?: string;
+  webhookTimeoutMs?: number;
   signal?: AbortSignal;
   now?: () => Date;
   logger?: (message: string) => void;
@@ -55,9 +57,9 @@ export interface ReviewerApp extends ReviewerServer {
   close: () => Promise<void>;
 }
 
-export function createReviewerApp(
+export async function createReviewerApp(
   options: ReviewerAppOptions = {},
-): ReviewerApp {
+): Promise<ReviewerApp> {
   const now = options.now ?? (() => new Date());
   const ttlMs = options.telemetryTtlMs ?? DEFAULT_TELEMETRY_TTL_MS;
   const registry = new MetricsRegistry({ now, ttlMs });
@@ -65,7 +67,7 @@ export function createReviewerApp(
   const gateway = trackGatewayUsage(buildGateway(options), usage, {
     task: "screening",
   });
-  const { store, closeStore } = buildStore(options);
+  const { store, closeStore } = await buildStore(options);
   const hr = new HrService({
     store,
     screeningEngine: createScreeningEngine(gateway),
@@ -74,22 +76,16 @@ export function createReviewerApp(
   const ingestor = new CandidateIngestor({ service: hr });
 
   const log = options.logger ?? ((message: string) => console.log(message));
+  const webhookUrl = options.webhookUrl ?? process.env.WEBHOOK_URL;
+  const deliver = createOutboxTransport({
+    webhookUrl,
+    timeoutMs: options.webhookTimeoutMs,
+    log,
+  });
   const dispatcher = options.signal
     ? createOutboxDispatcher({
         outbox: store.outbox,
-        handler: async (event) => {
-          const payload = event.payload as {
-            email?: string;
-            name?: string;
-            notice?: { version?: string };
-          };
-          const notice = payload.notice?.version
-            ? ` (ai-notice ${payload.notice.version})`
-            : "";
-          log(
-            `outbox[${event.type}] dispatched for ${payload.name ?? "?"} <${payload.email ?? "?"}>${notice}`,
-          );
-        },
+        handler: deliver,
         pollIntervalMs: 500,
         signal: options.signal,
       })
@@ -107,9 +103,13 @@ export function createReviewerApp(
     counter: (name, by, tags) => registry.counter(name, by, tags),
     report: () => summarize(registry, usage, now),
   };
-  const { server } = buildReviewerServer(
+  const { server } = await buildReviewerServer(
     hr,
-    { telemetry, apiToken: options.apiToken },
+    {
+      telemetry,
+      apiToken: options.apiToken,
+      dispatcher: dispatcher ?? undefined,
+    },
     ingestor,
   );
   return {
@@ -153,15 +153,85 @@ function buildGateway(
   return createGateway(providers, { activeProvider: providers[0]!.name });
 }
 
-function buildStore(options: ReviewerAppOptions): {
+async function buildStore(options: ReviewerAppOptions): Promise<{
   store: Store;
   closeStore: () => Promise<void>;
-} {
+}> {
   if (options.databaseUrl) {
+    const { runMigrations } = await import("@dsrvm/hr");
+    const ran = await runMigrations(options.databaseUrl);
+    if (ran.length) {
+      console.log(`hr-db: applied migrations: ${ran.join(", ")}`);
+    }
     const handle = createPostgresStore(options.databaseUrl);
     return { store: handle.store, closeStore: handle.close };
   }
   return { store: createInMemoryStore(), closeStore: async () => {} };
+}
+
+export const DEFAULT_WEBHOOK_TIMEOUT_MS = 10_000;
+
+export function createOutboxTransport(options: {
+  webhookUrl?: string | undefined;
+  timeoutMs?: number | undefined;
+  log: (message: string) => void;
+}): (event: OutboxEvent) => Promise<void> {
+  const { webhookUrl, log } = options;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_WEBHOOK_TIMEOUT_MS;
+
+  return async (event: OutboxEvent): Promise<void> => {
+    const dispatchedAt = new Date().toISOString();
+    if (!webhookUrl) {
+      const payload = event.payload as {
+        email?: string;
+        name?: string;
+        notice?: { version?: string };
+      };
+      const notice = payload.notice?.version
+        ? ` (ai-notice ${payload.notice.version})`
+        : "";
+      log(
+        `outbox[${event.type}] dispatched for ${payload.name ?? "?"} <${payload.email ?? "?"}>${notice}`,
+      );
+      return;
+    }
+
+    const body = JSON.stringify({
+      type: event.type,
+      candidateId: event.candidateId,
+      payload: event.payload,
+      dispatchedAt,
+    });
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        log(
+          `outbox[${event.type}] webhook FAILED for ${event.candidateId}: ${response.status} ${response.statusText}`,
+        );
+        return;
+      }
+      log(
+        `outbox[${event.type}] webhook delivered to ${webhookUrl} for ${event.candidateId} (${response.status})`,
+      );
+    } catch (error) {
+      const reason = controller.signal.aborted
+        ? `timeout after ${timeoutMs}ms`
+        : String(error);
+      log(
+        `outbox[${event.type}] webhook FAILED for ${event.candidateId}: ${reason}`,
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  };
 }
 
 function createDemoProvider(): LlmProvider {

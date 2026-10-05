@@ -10,3 +10,4 @@ export * from "./bias-gate.js";
 export * from "./ingest/index.js";
 export * from "./db/schema.js";
 export * from "./db/pg-store.js";
+export * from "./db/migrate.js";

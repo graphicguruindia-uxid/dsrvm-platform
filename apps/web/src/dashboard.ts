@@ -31,7 +31,7 @@ export function dashboardHtml(): string {
 </head>
 <body>
 <header>
-  <h1>DSRVM — Enterprise Web Reference</h1>
+  <div class="brand"><span class="logo"><img src="https://dsrvmltd.co.uk/images/dsrvmltd-logo-i.png" data-attr-logo="" alt="DSRVM - Enterprise Web Reference" width="120"></span><span class="tagline">Enterprise Web Reference</span></div>
   <span class="badge" id="status">admin console</span>
 </header>
 <main>

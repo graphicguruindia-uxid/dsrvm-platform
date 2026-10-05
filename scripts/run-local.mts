@@ -36,9 +36,9 @@ if (SEED) {
   );
 }
 
-await api.listen({ port: API_PORT, host: "0.0.0.0" });
-await hr.server.listen({ port: HR_PORT, host: "0.0.0.0" });
-await web.server.listen({ port: WEB_PORT, host: "0.0.0.0" });
+await api.listen({ port: API_PORT, host: "localhost" });
+await hr.server.listen({ port: HR_PORT, host: "localhost" });
+await web.server.listen({ port: WEB_PORT, host: "localhost" });
 
 if (hr.dispatcher) await hr.dispatcher.start();
 if (hr.retention) await hr.retention.start();
