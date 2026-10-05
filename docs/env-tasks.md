@@ -53,6 +53,28 @@ Legend: `[ ]` todo · `[x]` applied everywhere · `(local)` / `(staging)` /
    and the resolved AI provider — never secret values).
 4. Tick the box above with the environment suffix.
 
+## SSO providers (Azure AD + Google Workspace)
+
+`apps/web` builds its provider list from env via `ssoProvidersFromEnv`
+— a provider with missing keys is silently skipped, so unset means
+"password + invites only".
+
+- [ ] `SSO_BASE_URL` — public base URL used to build redirect URIs
+      (`{base}/api/auth/sso/{azure-ad|google-workspace}/callback`).
+      Must match the redirect URIs registered in each IdP.
+- [ ] `AZURE_AD_TENANT_ID` — directory (tenant) ID from the Entra
+      overview page. Use the GUID, not `common`, for single-tenant apps.
+- [ ] `AZURE_AD_CLIENT_ID` — Application (client) ID.
+- [ ] `AZURE_AD_CLIENT_SECRET` — client secret value (not the secret ID).
+- [ ] `GOOGLE_CLIENT_ID` — OAuth 2.0 client ID (Web application type).
+- [ ] `GOOGLE_CLIENT_SECRET` — matching client secret.
+- [ ] `GOOGLE_HOSTED_DOMAIN` — Workspace domain (e.g. `acme.com`) to
+      restrict sign-in to that org. Omit to allow any Google account.
+
+Verify with `GET /api/auth/sso` (lists enabled providers), then complete
+a login and confirm the session via `GET /api/auth/me`. See
+`docs/web-sso-adapter.md` for the IdP-side runbooks.
+
 ## Audit
 
 All preference changes are recorded in the tenant audit log

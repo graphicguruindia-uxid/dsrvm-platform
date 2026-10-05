@@ -67,6 +67,53 @@ provider-agnostic pattern already used for AI providers in `@dsrvm/ai`.
   (via `groups: platform-owners`); SSO token accepted by `/api/auth/me`; SAML POST callback ->
   bob created as `admin` (via `memberOf: hr-admins`); admin overview unaffected.
 
+## Deployment runbook — Azure AD (Microsoft Entra ID)
+
+1. **App registration** (Entra admin center → Identity → Applications →
+   App registrations → New): single tenant (use the directory GUID as
+   `AZURE_AD_TENANT_ID`), Web platform, redirect URI
+   `{SSO_BASE_URL}/api/auth/sso/azure-ad/callback`.
+2. **Client secret** (Certificates & secrets → New client secret): store
+   the *value* in `AZURE_AD_CLIENT_SECRET` (vault, never committed).
+3. **API permissions**: grant `openid`, `profile`, `email`
+   (delegated, Microsoft Graph). Admin-consent if the tenant requires it.
+4. **Token configuration** (optional, for group-driven roles): add a
+   `groups` claim ("Group assignments" → emit as group IDs). Map IDs in
+   code via `roleByGroup` on the preset, e.g.
+   `{ "<admin-group-id>": "admin" }`. Highest-precedence role wins;
+   default is `viewer`.
+5. **Email**: the adapter reads `preferred_username` (usually the UPN).
+   Confirm the tenant issues it as a verified email.
+
+## Deployment runbook — Google Workspace
+
+1. **OAuth client** (Google Cloud console → APIs & Services →
+   Credentials → Create OAuth client ID, Web application): authorized
+   redirect URI
+   `{SSO_BASE_URL}/api/auth/sso/google-workspace/callback`. Store the ID
+   and secret in `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
+2. **Org restriction**: set `GOOGLE_HOSTED_DOMAIN` (e.g. `acme.com`) to
+   send the `hd` param and block non-org accounts at Google. Omit for
+   any-Google-account sign-in (not recommended for client tenants).
+3. **OAuth consent screen**: External or Internal user type per audience;
+   scopes `openid`, `email`, `profile` (non-sensitive, no verification
+   needed for these three alone).
+4. **Role mapping**: Google emits Workspace groups only via the
+   Admin SDK, not in ID tokens. For group-driven roles, either keep the
+   default `viewer` and promote via invites, or front the tenant with a
+   SAML app (groups arrive in `memberOf`) instead of OIDC.
+
+## Verify (both providers)
+
+1. Set the env keys, restart, `GET /api/auth/sso` lists `azure-ad`
+   and/or `google-workspace`.
+2. `GET /api/auth/sso/{provider}/login?tenantId=…` → `redirectUrl`
+   points at the IdP with the app's `client_id` and a `state`.
+3. Complete the login → callback returns `{user, token, created}` and
+   `GET /api/auth/me` accepts the token.
+4. SSO-provisioned owners are clamped: a second `owner` mapping becomes
+   `admin`, and SSO never demotes an existing owner (`auth.ts`).
+
 ## Production notes / limits
 
 - The SAML signature verifier checks the `SignedInfo` _substring_ bytes (works for

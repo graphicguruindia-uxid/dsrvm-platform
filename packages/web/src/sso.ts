@@ -56,6 +56,8 @@ export interface OidcSsoConfig {
   defaultRole?: UserRole;
   roleByGroup?: Record<string, UserRole>;
   fetchFn?: FetchLike;
+  /** Extra query params on the authorize URL (e.g. Google `hd` for Workspace domain). */
+  extraAuthorizeParams?: Record<string, string>;
 }
 
 export interface SamlSsoConfig {
@@ -242,6 +244,11 @@ function createOidcProvider(name: string, config: OidcSsoConfig): SsoProvider {
       state: input.state,
     });
     if (input.nonce) params.set("nonce", input.nonce);
+    for (const [key, value] of Object.entries(
+      config.extraAuthorizeParams ?? {},
+    )) {
+      params.set(key, value);
+    }
     return `${endpoint}${endpoint.includes("?") ? "&" : "?"}${params.toString()}`;
   }
 

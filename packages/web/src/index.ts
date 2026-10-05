@@ -3,6 +3,7 @@ export * from "./store.js";
 export * from "./tenant.js";
 export * from "./auth.js";
 export * from "./sso.js";
+export * from "./sso-presets.js";
 export * from "./rbac.js";
 export * from "./invites.js";
 export * from "./audit.js";

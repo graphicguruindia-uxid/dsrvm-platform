@@ -1,11 +1,19 @@
 import { createWebReferenceApp } from "./app.js";
+import { ssoProvidersFromEnv } from "@dsrvm/web";
 import { seedReference } from "./seed.js";
 
 const port = Number(process.env.PORT ?? 3003);
+const ssoProviders = ssoProvidersFromEnv(process.env);
 const app = createWebReferenceApp({
   databaseUrl: process.env.DATABASE_URL,
   billingWebhookSecret: process.env.BILLING_WEBHOOK_SECRET,
+  ssoProviders,
 });
+if (ssoProviders.length > 0) {
+  console.log(
+    `SSO providers enabled: ${ssoProviders.map((p) => p.name).join(", ")}`,
+  );
+}
 
 if (process.env.SEED_DEMO === "1") {
   const seeded = await seedReference(app.service);
