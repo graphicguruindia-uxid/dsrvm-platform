@@ -1,16 +1,23 @@
 import { randomUUID } from "node:crypto";
-import type { Tenant } from "./types.js";
+import type { AiServiceKind, CmsKind, Tenant } from "./types.js";
 
 export interface TenantRegistry {
   create(input: {
     name: string;
     hosts?: string[];
     plan?: string;
+    preferredCMS?: CmsKind;
+    preferredAIService?: AiServiceKind;
   }): Promise<Tenant>;
   get(tenantId: string): Promise<Tenant | null>;
   list(): Promise<Tenant[]>;
   resolveFromHost(host: string): Promise<Tenant | null>;
   setHosts(tenantId: string, hosts: string[]): Promise<Tenant>;
+  setPreferences(
+    tenantId: string,
+    input: { preferredCMS?: CmsKind; preferredAIService?: AiServiceKind },
+  ): Promise<Tenant>;
+  remove(tenantId: string): Promise<void>;
 }
 
 export interface TenantStore {
@@ -18,6 +25,7 @@ export interface TenantStore {
   getTenant(tenantId: string): Promise<Tenant | null>;
   listTenants(): Promise<Tenant[]>;
   resolveHost(host: string): Promise<Tenant | null>;
+  deleteTenant(tenantId: string): Promise<void>;
 }
 
 export function createTenantRegistry(store: TenantStore): TenantRegistry {
@@ -32,6 +40,8 @@ export function createTenantRegistry(store: TenantStore): TenantRegistry {
         name: input.name,
         hosts: input.hosts ?? [],
         plan: input.plan ?? "starter",
+        preferredCMS: input.preferredCMS ?? "none",
+        preferredAIService: input.preferredAIService ?? "none",
         createdAt: new Date().toISOString(),
       };
       await store.saveTenant(tenant);
@@ -62,6 +72,27 @@ export function createTenantRegistry(store: TenantStore): TenantRegistry {
       const updated: Tenant = { ...tenant, hosts };
       await store.saveTenant(updated);
       return updated;
+    },
+    async setPreferences(tenantId, input) {
+      const tenant = await store.getTenant(tenantId);
+      if (!tenant) {
+        throw new Error(`tenant "${tenantId}" not found`);
+      }
+      const updated: Tenant = {
+        ...tenant,
+        preferredCMS: input.preferredCMS ?? tenant.preferredCMS,
+        preferredAIService:
+          input.preferredAIService ?? tenant.preferredAIService,
+      };
+      await store.saveTenant(updated);
+      return updated;
+    },
+    async remove(tenantId) {
+      const tenant = await store.getTenant(tenantId);
+      if (!tenant) {
+        throw new Error(`tenant "${tenantId}" not found`);
+      }
+      await store.deleteTenant(tenantId);
     },
   };
 }

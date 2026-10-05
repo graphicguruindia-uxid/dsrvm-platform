@@ -1,13 +1,49 @@
-export type UserRole = "owner" | "admin" | "editor" | "viewer";
+export type UserRole = "owner" | "admin" | "operator" | "editor" | "viewer";
 
 export type ContentStatus = "draft" | "published" | "archived";
+
+export type CmsKind =
+  | "sharepoint"
+  | "sitecore"
+  | "aem"
+  | "umbraco"
+  | "dotnetnuke"
+  | "wordpress"
+  | "opencms"
+  | "custom"
+  | "none";
+
+export type AiServiceKind =
+  "azure-openai" | "openai" | "gemini" | "copilot" | "anthropic" | "none";
 
 export interface Tenant {
   id: string;
   name: string;
   hosts: string[];
   plan: string;
+  preferredCMS: CmsKind;
+  preferredAIService: AiServiceKind;
   createdAt: string;
+}
+
+export interface Invite {
+  id: string;
+  tenantId: string;
+  email: string;
+  role: UserRole;
+  tokenHash: string;
+  expiresAt: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface AuditEvent {
+  id: string;
+  tenantId: string;
+  actorId: string;
+  action: string;
+  detail?: string;
+  at: string;
 }
 
 export interface User {
@@ -90,4 +126,6 @@ export interface WebAppSnapshot {
   sessions: Session[];
   content: ContentItem[];
   usage: UsageRecord[];
+  invites: Invite[];
+  auditEvents: AuditEvent[];
 }

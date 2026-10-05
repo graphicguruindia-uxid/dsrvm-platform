@@ -11,7 +11,13 @@ import type { WebStore } from "./store.js";
 import type { User, UserRole } from "./types.js";
 
 const STATE_TTL_MS = 10 * 60 * 1000;
-const ROLE_ORDER: UserRole[] = ["owner", "admin", "editor", "viewer"];
+const ROLE_ORDER: UserRole[] = [
+  "owner",
+  "admin",
+  "operator",
+  "editor",
+  "viewer",
+];
 
 export type SsoGrant = "code" | "implicit";
 

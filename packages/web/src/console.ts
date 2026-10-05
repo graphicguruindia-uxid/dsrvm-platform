@@ -88,7 +88,11 @@ export function createAdminService(
       };
     },
     async tenantOverview(actor, tenantId) {
-      requirePermission(actor, PERMISSIONS.consoleAccess);
+      requirePermission(actor, PERMISSIONS.reportsView);
+      if (actor.tenantId !== tenantId) {
+        // Cross-tenant report reads require the global console permission.
+        requirePermission(actor, PERMISSIONS.consoleAccess);
+      }
       return tenantOverview(tenantId);
     },
   };

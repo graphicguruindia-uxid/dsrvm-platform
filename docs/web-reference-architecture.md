@@ -19,7 +19,7 @@ White-labelable web baseline: multi-tenant, auth/SSO (session-based now, SSO-rea
 - `cms.ts` — createCmsService: tenant-scoped content CRUD, publish/archive lifecycle, getBySlug, list.
 - `billing.ts` — createBillingService: PLAN_LIMITS (starter 5 seats/20 published/$50mo, growth 25/200/$500, enterprise unlimited). recordUsage → estimateCostUsd from @dsrvm/telemetry; monthUsageUsd + remainingAiBudgetUsd aggregates.
 - `console.ts` — createAdminService: tenant-scoped overview (owner) and global overview (consoleAccess) for the admin console skeleton.
-- `service.ts` — createWebReferenceService facade + `bootstrap({name,host})` (creates growth tenant + owner@host / change-me-now).
+- `service.ts` — createWebReferenceService facade + `bootstrap({name,host})` (creates growth tenant + single-use owner invite for owner@host; no default password).
 
 ## Reference server (apps/web)
 

@@ -537,6 +537,30 @@ async function main() {
       dup.json(),
     );
 
+    check(
+      "POST /api/tenants returns a single-use owner invite (no default password)",
+      typeof tenant.json().inviteToken === "string" &&
+        !!tenant.json().inviteToken,
+      { hasInviteToken: !!tenant.json().inviteToken },
+    );
+
+    const accept = await call(server, {
+      method: "POST",
+      url: "/api/invites/accept",
+      payload: {
+        token: tenant.json().inviteToken,
+        name: "Owner",
+        password: "change-me-now",
+      },
+    });
+    check(
+      "POST /api/invites/accept (owner invite) -> 201 token",
+      accept.statusCode === 201 && !!accept.json().token,
+      accept.json(),
+    );
+    const token = accept.json().token;
+    const auth = `Bearer ${token}`;
+
     const login = await call(server, {
       method: "POST",
       url: "/api/auth/login",
@@ -547,12 +571,10 @@ async function main() {
       },
     });
     check(
-      "POST /api/auth/login (seeded owner) -> 200 token",
+      "POST /api/auth/login (claimed owner) -> 200 token",
       login.statusCode === 200 && !!login.json().token,
       login.json(),
     );
-    const token = login.json().token;
-    const auth = `Bearer ${token}`;
 
     const badLogin = await call(server, {
       method: "POST",

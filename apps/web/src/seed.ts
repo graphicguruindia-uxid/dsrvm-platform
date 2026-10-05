@@ -9,14 +9,15 @@ export async function seedReference(
 ): Promise<ReferenceSeedResult> {
   const tenantIds: string[] = [];
 
-  const acme = await service.bootstrap({
+  const acmeBoot = await service.bootstrap({
     name: "Acme Consulting",
     host: "acme.dsrvm.app",
   });
+  const acme = acmeBoot.tenant;
   const acmeOwner = (
-    await service.auth.login({
-      tenantId: acme.id,
-      email: `owner@acme.dsrvm.app`,
+    await service.invites.accept({
+      token: acmeBoot.inviteToken,
+      name: "Acme Owner",
       password: "change-me-now",
     })
   ).user;
@@ -51,14 +52,15 @@ export async function seedReference(
   });
   tenantIds.push(acme.id);
 
-  const beta = await service.bootstrap({
+  const betaBoot = await service.bootstrap({
     name: "Beta Retail",
     host: "beta.dsrvm.app",
   });
+  const beta = betaBoot.tenant;
   const betaOwner = (
-    await service.auth.login({
-      tenantId: beta.id,
-      email: `owner@beta.dsrvm.app`,
+    await service.invites.accept({
+      token: betaBoot.inviteToken,
+      name: "Beta Owner",
       password: "change-me-now",
     })
   ).user;

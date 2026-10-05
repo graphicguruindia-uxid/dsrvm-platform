@@ -35,11 +35,15 @@ export function buildWebReferenceServer(
         return reply.code(400).send({ error: "name and host are required" });
       }
       try {
-        const tenant = await service.bootstrap({ name, host });
+        const { tenant, ownerEmail, inviteToken } = await service.bootstrap({
+          name,
+          host,
+        });
         return reply.code(201).send({
           tenant,
-          ownerEmail: `owner@${host}`,
-          note: "reference seed password: change-me-now",
+          ownerEmail,
+          inviteToken,
+          note: "no default password is set. Claim the owner account by accepting the invite token via POST /api/invites/accept.",
         });
       } catch (error) {
         return reply.code(409).send({ error: message(error) });
@@ -66,9 +70,11 @@ export function buildWebReferenceServer(
       password?: string;
       name?: string;
       role?: string;
+      inviteToken?: string;
     };
   }>("/api/auth/signup", async (request, reply) => {
-    const { tenantId, email, password, name, role } = request.body ?? {};
+    const { tenantId, email, password, name, role, inviteToken } =
+      request.body ?? {};
     if (!tenantId || !email || !password || !name) {
       return reply
         .code(400)
@@ -81,12 +87,103 @@ export function buildWebReferenceServer(
         password,
         name,
         role: (role as User["role"]) ?? "viewer",
+        inviteToken,
       });
       return reply.code(201).send({ user, token });
     } catch (error) {
-      return reply.code(409).send({ error: message(error) });
+      const msg = message(error);
+      const code = /invite|owner/i.test(msg) ? 403 : 409;
+      return reply.code(code).send({ error: msg });
     }
   });
+
+  server.post<{
+    Body: { email?: string; role?: string };
+  }>("/api/invites", async (request, reply) => {
+    const auth = await tryAuth(service, request.headers.authorization);
+    if (!auth)
+      return reply.code(401).send({ error: "authentication required" });
+    const { email, role } = request.body ?? {};
+    if (!email || !role) {
+      return reply.code(400).send({ error: "email and role are required" });
+    }
+    if (!["admin", "operator", "editor", "viewer"].includes(role)) {
+      return reply.code(400).send({ error: `cannot invite role "${role}"` });
+    }
+    try {
+      const result = await service.invites.create({
+        tenantId: auth.session.tenantId,
+        email,
+        role: role as User["role"],
+        actor: auth.user,
+      });
+      return reply.code(201).send(result);
+    } catch (error) {
+      const msg = message(error);
+      const code = msg.startsWith("forbidden") ? 403 : 409;
+      return reply.code(code).send({ error: msg });
+    }
+  });
+
+  server.get("/api/invites", async (request, reply) => {
+    const auth = await tryAuth(service, request.headers.authorization);
+    if (!auth)
+      return reply.code(401).send({ error: "authentication required" });
+    try {
+      return {
+        invites: await service.invites.list({
+          tenantId: auth.session.tenantId,
+          actor: auth.user,
+        }),
+      };
+    } catch (error) {
+      return reply.code(403).send({ error: message(error) });
+    }
+  });
+
+  server.post<{
+    Body: { token?: string; name?: string; password?: string };
+  }>("/api/invites/accept", async (request, reply) => {
+    const { token, name, password } = request.body ?? {};
+    if (!token || !name || !password) {
+      return reply
+        .code(400)
+        .send({ error: "token, name, password are required" });
+    }
+    try {
+      const { user, sessionToken } = await service.invites.accept({
+        token,
+        name,
+        password,
+      });
+      return reply
+        .code(201)
+        .send({ user: publicUser(user), token: sessionToken });
+    } catch (error) {
+      return reply.code(400).send({ error: message(error) });
+    }
+  });
+
+  server.delete<{ Params: { id: string } }>(
+    "/api/invites/:id",
+    async (request, reply) => {
+      const auth = await tryAuth(service, request.headers.authorization);
+      if (!auth)
+        return reply.code(401).send({ error: "authentication required" });
+      try {
+        await service.invites.revoke({
+          tenantId: auth.session.tenantId,
+          id: request.params.id,
+          actor: auth.user,
+        });
+        return { ok: true };
+      } catch (error) {
+        const msg = message(error);
+        const code = msg.startsWith("forbidden") ? 403 : 404;
+        return reply.code(code).send({ error: msg });
+      }
+    },
+  );
 
   server.post<{
     Body: { tenantId?: string; email?: string; password?: string };
@@ -293,6 +390,112 @@ export function buildWebReferenceServer(
       }
     },
   );
+
+  server.patch<{
+    Body: { preferredCMS?: string; preferredAIService?: string };
+  }>("/api/tenants/preferences", async (request, reply) => {
+    const auth = await tryAuth(service, request.headers.authorization);
+    if (!auth)
+      return reply.code(401).send({ error: "authentication required" });
+    const { preferredCMS, preferredAIService } = request.body ?? {};
+    if (preferredCMS === undefined && preferredAIService === undefined) {
+      return reply
+        .code(400)
+        .send({ error: "preferredCMS or preferredAIService is required" });
+    }
+    try {
+      const tenant = await service.integrations.setPreferences({
+        tenantId: auth.session.tenantId,
+        actor: auth.user,
+        preferredCMS: preferredCMS as import("@dsrvm/web").CmsKind | undefined,
+        preferredAIService: preferredAIService as
+          import("@dsrvm/web").AiServiceKind | undefined,
+      });
+      return { tenant };
+    } catch (error) {
+      const msg = message(error);
+      const code = msg.startsWith("forbidden") ? 403 : 400;
+      return reply.code(code).send({ error: msg });
+    }
+  });
+
+  server.delete("/api/tenants", async (request, reply) => {
+    const auth = await tryAuth(service, request.headers.authorization);
+    if (!auth)
+      return reply.code(401).send({ error: "authentication required" });
+    try {
+      await service.deleteTenant({
+        tenantId: auth.session.tenantId,
+        actorId: auth.user.id,
+      });
+      return { ok: true };
+    } catch (error) {
+      const msg = message(error);
+      const code = msg.startsWith("forbidden") ? 403 : 400;
+      return reply.code(code).send({ error: msg });
+    }
+  });
+
+  server.get("/api/integrations/registry", async (request, reply) => {
+    const auth = await tryAuth(service, request.headers.authorization);
+    if (!auth)
+      return reply.code(401).send({ error: "authentication required" });
+    return service.integrations.registry();
+  });
+
+  server.get("/api/integrations/resolved", async (request, reply) => {
+    const auth = await tryAuth(service, request.headers.authorization);
+    if (!auth)
+      return reply.code(401).send({ error: "authentication required" });
+    try {
+      requirePerm(auth.user, PERMISSIONS.cmsView);
+      const tenantId = auth.session.tenantId;
+      const tenant = await service.tenants.get(tenantId);
+      const connection = await service.integrations.connectionFor(tenantId);
+      const ai = await service.integrations.aiFor(tenantId);
+      return {
+        tenantId,
+        preferredCMS: tenant?.preferredCMS ?? "none",
+        preferredAIService: tenant?.preferredAIService ?? "none",
+        // Never expose secrets: only whether a connection is configured.
+        cmsConfigured: connection !== null,
+        cmsKind: connection?.kind ?? null,
+        ai,
+      };
+    } catch (error) {
+      return reply.code(403).send({ error: message(error) });
+    }
+  });
+
+  server.get("/api/audit", async (request, reply) => {
+    const auth = await tryAuth(service, request.headers.authorization);
+    if (!auth)
+      return reply.code(401).send({ error: "authentication required" });
+    try {
+      return {
+        events: await service.audit.list({
+          tenantId: auth.session.tenantId,
+          actor: auth.user,
+        }),
+      };
+    } catch (error) {
+      return reply.code(403).send({ error: message(error) });
+    }
+  });
+
+  server.get("/api/reports/overview", async (request, reply) => {
+    const auth = await tryAuth(service, request.headers.authorization);
+    if (!auth)
+      return reply.code(401).send({ error: "authentication required" });
+    try {
+      return await service.admin.tenantOverview(
+        auth.user,
+        auth.session.tenantId,
+      );
+    } catch (error) {
+      return reply.code(403).send({ error: message(error) });
+    }
+  });
 
   server.register(async function billingWebhookPlugin(instance) {
     instance.addContentTypeParser(

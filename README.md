@@ -9,12 +9,12 @@ AI consulting delivery, intelligent HR automation, and enterprise web solutions.
 #Capabilities being exercised
 #1. Multi-tenancy / white-labeling — tenant resolution from the Host header; hosts map 1:1 #to tenants (acme.dsrvm.app, beta.dsrvm.app in the seed data).
 #2. Auth — session-based signup/login/logout with scrypt hashing and 24-byte opaque tokens #(7-day TTL); an SSO-ready seam for later OIDC/SAML.
-#3. RBAC — 8 permissions across owner > admin > editor > viewer.
+#3. RBAC — 17 permissions across owner > admin > operator > editor > viewer, with strictly-downward invite bounds and a single owner per tenant.
 #4. Tenant-scoped CMS — content CRUD with draft → published → archived lifecycle.
 #5. Billing / metered usage — plan tiers (starter / growth / enterprise) with seat + #published-content limits, AI cost estimation via @dsrvm/telemetry, and remaining-budget #aggregates.
 #6. Admin console — tenant overview and a cross-tenant consoleAccess overview.
 #What the dashboard page itself does
-#A single-page console that drives the whole flow end-to-end: bootstrap a tenant (POST #/api/tenants), sign in as owner@<host> / change-me-now, render tenant stats, and create new #white-label tenants from a form. It is intentionally plain HTML/CSS/JS — the "reference" UI #layer that a future Next.js presentation layer will replace once the DSRA-4 CEO stack #decision lands.
+#A single-page console that drives the whole flow end-to-end: bootstrap a tenant (POST #/api/tenants) which returns a single-use owner invite token (no default password), accept it via POST #/api/invites/accept, then render tenant stats and create new #white-label tenants from a form. It is intentionally plain HTML/CSS/JS — the "reference" UI #layer that a future Next.js presentation layer will replace once the DSRA-4 CEO stack #decision lands.
 
 ## Stack
 

@@ -63,18 +63,20 @@ async function createTenantAndLogin(app: ReturnType<typeof build>) {
   });
   expect(tenantRes.statusCode).toBe(201);
   const tenant = tenantRes.json().tenant;
+  expect(tenantRes.json().inviteToken).toBeTruthy();
+  expect(tenantRes.json().note).not.toContain("change-me-now");
 
-  const loginRes = await app.server.inject({
+  const acceptRes = await app.server.inject({
     method: "POST",
-    url: "/api/auth/login",
+    url: "/api/invites/accept",
     payload: {
-      tenantId: tenant.id,
-      email: "owner@acme.dsrvm.app",
+      token: tenantRes.json().inviteToken,
+      name: "Owner",
       password: "change-me-now",
     },
   });
-  expect(loginRes.statusCode).toBe(200);
-  return { app, tenant, token: loginRes.json().token as string };
+  expect(acceptRes.statusCode).toBe(201);
+  return { app, tenant, token: acceptRes.json().token as string };
 }
 
 describe("web reference server", () => {
@@ -220,15 +222,11 @@ describe("web reference server", () => {
     expect(acme?.name).toBe("Acme Consulting");
     expect(beta?.name).toBe("Beta Retail");
 
-    const overview = await app.service.admin.overview(
-      (
-        await app.service.auth.login({
-          tenantId: acme!.id,
-          email: `owner@acme.dsrvm.app`,
-          password: "change-me-now",
-        })
-      ).user,
+    const acmeOwner = await app.service.store.getUserByEmail(
+      acme!.id,
+      "owner@acme.dsrvm.app",
     );
+    const overview = await app.service.admin.overview(acmeOwner!);
     expect(overview.tenants).toBe(2);
     expect(
       overview.perTenant.find((t) => t.tenantId === acme!.id)?.publishedItems,

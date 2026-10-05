@@ -13,8 +13,32 @@ CREATE TABLE tenants (
   name text NOT NULL,
   hosts jsonb NOT NULL,
   plan text NOT NULL,
+  preferred_cms text NOT NULL DEFAULT 'none',
+  preferred_ai_service text NOT NULL DEFAULT 'none',
   created_at text NOT NULL
 );
+CREATE TABLE invites (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL,
+  email text NOT NULL,
+  role text NOT NULL,
+  token_hash text NOT NULL,
+  expires_at text NOT NULL,
+  created_by text NOT NULL,
+  created_at text NOT NULL
+);
+CREATE INDEX invites_tenant_idx ON invites (tenant_id);
+CREATE UNIQUE INDEX invites_token_hash_idx ON invites (token_hash);
+CREATE TABLE audit_events (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL,
+  actor_id text NOT NULL,
+  action text NOT NULL,
+  detail text,
+  at text NOT NULL
+);
+CREATE INDEX audit_tenant_idx ON audit_events (tenant_id);
+CREATE INDEX audit_at_idx ON audit_events (at);
 CREATE TABLE users (
   id text PRIMARY KEY,
   tenant_id text NOT NULL,
@@ -94,19 +118,20 @@ describe("PgWebStore persistence (pglite)", () => {
   it("runs the full web flow (bootstrap, auth, CMS, billing) through real Postgres", async () => {
     const service = createWebReferenceService(store, () => new Date(AT));
 
-    const acme = await service.bootstrap({
+    const acmeBoot = await service.bootstrap({
       name: "Acme Consulting",
       host: "acme.dsrvm.app",
     });
+    const acme = acmeBoot.tenant;
     expect(acme.hosts).toEqual(["acme.dsrvm.app"]);
 
     const resolved = await service.tenants.resolveFromHost("acme.dsrvm.app");
     expect(resolved?.id).toBe(acme.id);
     expect(await service.tenants.resolveFromHost("other.app")).toBeNull();
 
-    const owner = await service.auth.login({
-      tenantId: acme.id,
-      email: `owner@acme.dsrvm.app`,
+    const owner = await service.invites.accept({
+      token: acmeBoot.inviteToken,
+      name: "Owner",
       password: "change-me-now",
     });
     expect(owner.user.role).toBe("owner");
@@ -146,14 +171,16 @@ describe("PgWebStore persistence (pglite)", () => {
 
   it("enforces tenant/email uniqueness and cross-tenant content isolation", async () => {
     const service = createWebReferenceService(store, () => new Date(AT));
-    const acme = await service.bootstrap({
+    const acmeBoot = await service.bootstrap({
       name: "Acme",
       host: "acme.dsrvm.app",
     });
-    const beta = await service.bootstrap({
+    const acme = acmeBoot.tenant;
+    const betaBoot = await service.bootstrap({
       name: "Beta",
       host: "beta.dsrvm.app",
     });
+    const beta = betaBoot.tenant;
 
     await service.auth.signup({
       tenantId: acme.id,
@@ -176,14 +203,14 @@ describe("PgWebStore persistence (pglite)", () => {
       }),
     ).rejects.toThrow("already exists");
 
-    const acmeOwner = await service.auth.login({
-      tenantId: acme.id,
-      email: "owner@acme.dsrvm.app",
+    const acmeOwner = await service.invites.accept({
+      token: acmeBoot.inviteToken,
+      name: "Acme Owner",
       password: "change-me-now",
     });
-    const betaOwner = await service.auth.login({
-      tenantId: beta.id,
-      email: "owner@beta.dsrvm.app",
+    const betaOwner = await service.invites.accept({
+      token: betaBoot.inviteToken,
+      name: "Beta Owner",
       password: "change-me-now",
     });
 
@@ -241,13 +268,14 @@ describe("PgWebStore persistence (pglite)", () => {
 
   it("persists across store instances (survives reconnect)", async () => {
     const service = createWebReferenceService(store, () => new Date(AT));
-    const acme = await service.bootstrap({
+    const acmeBoot = await service.bootstrap({
       name: "Acme",
       host: "acme.dsrvm.app",
     });
-    const owner = await service.auth.login({
-      tenantId: acme.id,
-      email: "owner@acme.dsrvm.app",
+    const acme = acmeBoot.tenant;
+    const owner = await service.invites.accept({
+      token: acmeBoot.inviteToken,
+      name: "Owner",
       password: "change-me-now",
     });
     await service.cms.createItem({
@@ -270,7 +298,7 @@ describe("PgWebStore persistence (pglite)", () => {
 
   it("round-trips usage records and resolves hosts after reassignment", async () => {
     const service = createWebReferenceService(store, () => new Date(AT));
-    const acme = await service.bootstrap({
+    const { tenant: acme } = await service.bootstrap({
       name: "Acme",
       host: "acme.dsrvm.app",
     });

@@ -7,15 +7,62 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import type { ContentStatus, UserRole } from "../types.js";
+import type {
+  AiServiceKind,
+  CmsKind,
+  ContentStatus,
+  UserRole,
+} from "../types.js";
 
 export const tenants = pgTable("tenants", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   hosts: jsonb("hosts").$type<string[]>().notNull(),
   plan: text("plan").notNull(),
+  preferredCMS: text("preferred_cms")
+    .$type<CmsKind>()
+    .notNull()
+    .default("none"),
+  preferredAIService: text("preferred_ai_service")
+    .$type<AiServiceKind>()
+    .notNull()
+    .default("none"),
   createdAt: text("created_at").notNull(),
 });
+
+export const invites = pgTable(
+  "invites",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id").notNull(),
+    email: text("email").notNull(),
+    role: text("role").$type<UserRole>().notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("invites_tenant_idx").on(table.tenantId),
+    uniqueIndex("invites_token_hash_idx").on(table.tokenHash),
+  ],
+);
+
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id").notNull(),
+    actorId: text("actor_id").notNull(),
+    action: text("action").notNull(),
+    detail: text("detail"),
+    at: text("at").notNull(),
+  },
+  (table) => [
+    index("audit_tenant_idx").on(table.tenantId),
+    index("audit_at_idx").on(table.at),
+  ],
+);
 
 export const users = pgTable(
   "users",

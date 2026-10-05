@@ -1,5 +1,7 @@
 import type {
+  AuditEvent,
   ContentItem,
+  Invite,
   Session,
   Tenant,
   UsageRecord,
@@ -24,6 +26,13 @@ export interface WebStore extends TenantStore {
   listContent(): Promise<ContentItem[]>;
   addUsage(record: UsageRecord): Promise<void>;
   listUsage(tenantId?: string): Promise<UsageRecord[]>;
+  saveInvite(invite: Invite): Promise<void>;
+  getInvite(id: string): Promise<Invite | null>;
+  getInviteByTokenHash(tokenHash: string): Promise<Invite | null>;
+  listInvitesByTenant(tenantId: string): Promise<Invite[]>;
+  deleteInvite(id: string): Promise<void>;
+  addAuditEvent(event: AuditEvent): Promise<void>;
+  listAuditEvents(tenantId?: string): Promise<AuditEvent[]>;
   snapshot(): Promise<WebAppSnapshot>;
 }
 
@@ -34,6 +43,8 @@ export function createWebStore(now: () => Date = () => new Date()): WebStore {
   const sessions = new Map<string, Session>();
   const content = new Map<string, ContentItem>();
   const usage: UsageRecord[] = [];
+  const invites = new Map<string, Invite>();
+  const auditEvents: AuditEvent[] = [];
 
   return {
     async saveTenant(tenant) {
@@ -54,6 +65,33 @@ export function createWebStore(now: () => Date = () => new Date()): WebStore {
     async resolveHost(host) {
       const tenantId = hostIndex.get(host);
       return tenantId ? (tenants.get(tenantId) ?? null) : null;
+    },
+    async deleteTenant(tenantId) {
+      const tenant = tenants.get(tenantId);
+      if (tenant) {
+        for (const host of tenant.hosts) {
+          if (hostIndex.get(host) === tenantId) hostIndex.delete(host);
+        }
+        tenants.delete(tenantId);
+      }
+      for (const [id, user] of users) {
+        if (user.tenantId === tenantId) users.delete(id);
+      }
+      for (const [token, session] of sessions) {
+        if (session.tenantId === tenantId) sessions.delete(token);
+      }
+      for (const [id, item] of content) {
+        if (item.tenantId === tenantId) content.delete(id);
+      }
+      for (let i = usage.length - 1; i >= 0; i--) {
+        if (usage[i]!.tenantId === tenantId) usage.splice(i, 1);
+      }
+      for (const [id, invite] of invites) {
+        if (invite.tenantId === tenantId) invites.delete(id);
+      }
+      for (let i = auditEvents.length - 1; i >= 0; i--) {
+        if (auditEvents[i]!.tenantId === tenantId) auditEvents.splice(i, 1);
+      }
     },
 
     async saveUser(user) {
@@ -119,6 +157,32 @@ export function createWebStore(now: () => Date = () => new Date()): WebStore {
         : [...usage];
     },
 
+    async saveInvite(invite) {
+      invites.set(invite.id, invite);
+    },
+    async getInvite(id) {
+      return invites.get(id) ?? null;
+    },
+    async getInviteByTokenHash(tokenHash) {
+      return (
+        [...invites.values()].find((i) => i.tokenHash === tokenHash) ?? null
+      );
+    },
+    async listInvitesByTenant(tenantId) {
+      return [...invites.values()].filter((i) => i.tenantId === tenantId);
+    },
+    async deleteInvite(id) {
+      invites.delete(id);
+    },
+
+    async addAuditEvent(event) {
+      auditEvents.push(event);
+    },
+    async listAuditEvents(tenantId) {
+      const sorted = [...auditEvents].sort((a, b) => a.at.localeCompare(b.at));
+      return tenantId ? sorted.filter((e) => e.tenantId === tenantId) : sorted;
+    },
+
     async snapshot() {
       return {
         tenants: [...tenants.values()],
@@ -126,6 +190,8 @@ export function createWebStore(now: () => Date = () => new Date()): WebStore {
         sessions: [...sessions.values()],
         content: [...content.values()],
         usage: [...usage],
+        invites: [...invites.values()],
+        auditEvents: [...auditEvents],
       };
     },
   };

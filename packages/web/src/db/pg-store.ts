@@ -4,8 +4,10 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import type {
+  AuditEvent,
   ContentItem,
   ContentStatus,
+  Invite,
   Session,
   Tenant,
   UsageRecord,
@@ -15,7 +17,9 @@ import type {
 } from "../types.js";
 import type { WebStore } from "../store.js";
 import {
+  auditEvents,
   contentItems,
+  invites,
   sessions,
   tenants,
   usageRecords,
@@ -200,13 +204,92 @@ export class PgWebStore implements WebStore {
     return rows.map(rowToUsage);
   }
 
+  async saveInvite(invite: Invite): Promise<void> {
+    await this.db
+      .insert(invites)
+      .values(inviteToRow(invite))
+      .onConflictDoUpdate({
+        target: invites.id,
+        set: inviteToRow(invite),
+      });
+  }
+
+  async getInvite(id: string): Promise<Invite | null> {
+    const [row] = await this.db
+      .select()
+      .from(invites)
+      .where(eq(invites.id, id))
+      .limit(1);
+    return row ? rowToInvite(row) : null;
+  }
+
+  async getInviteByTokenHash(tokenHash: string): Promise<Invite | null> {
+    const [row] = await this.db
+      .select()
+      .from(invites)
+      .where(eq(invites.tokenHash, tokenHash))
+      .limit(1);
+    return row ? rowToInvite(row) : null;
+  }
+
+  async listInvitesByTenant(tenantId: string): Promise<Invite[]> {
+    const rows = await this.db
+      .select()
+      .from(invites)
+      .where(eq(invites.tenantId, tenantId))
+      .orderBy(asc(invites.createdAt));
+    return rows.map(rowToInvite);
+  }
+
+  async deleteInvite(id: string): Promise<void> {
+    await this.db.delete(invites).where(eq(invites.id, id));
+  }
+
+  async addAuditEvent(event: AuditEvent): Promise<void> {
+    await this.db.insert(auditEvents).values({
+      id: event.id,
+      tenantId: event.tenantId,
+      actorId: event.actorId,
+      action: event.action,
+      detail: event.detail ?? null,
+      at: event.at,
+    });
+  }
+
+  async listAuditEvents(tenantId?: string): Promise<AuditEvent[]> {
+    const query = this.db
+      .select()
+      .from(auditEvents)
+      .orderBy(asc(auditEvents.at));
+    const rows = tenantId
+      ? await query.where(eq(auditEvents.tenantId, tenantId))
+      : await query;
+    return rows.map(rowToAuditEvent);
+  }
+
+  async deleteTenant(tenantId: string): Promise<void> {
+    await this.db.delete(auditEvents).where(eq(auditEvents.tenantId, tenantId));
+    await this.db.delete(invites).where(eq(invites.tenantId, tenantId));
+    await this.db.delete(sessions).where(eq(sessions.tenantId, tenantId));
+    await this.db.delete(users).where(eq(users.tenantId, tenantId));
+    await this.db
+      .delete(contentItems)
+      .where(eq(contentItems.tenantId, tenantId));
+    await this.db
+      .delete(usageRecords)
+      .where(eq(usageRecords.tenantId, tenantId));
+    await this.db.delete(tenants).where(eq(tenants.id, tenantId));
+  }
+
   async snapshot(): Promise<WebAppSnapshot> {
-    const [ts, us, ss, cs, rs] = await Promise.all([
+    const [ts, us, ss, cs, rs, ivs, aes] = await Promise.all([
       this.db.select().from(tenants),
       this.db.select().from(users),
       this.db.select().from(sessions),
       this.db.select().from(contentItems),
       this.db.select().from(usageRecords),
+      this.db.select().from(invites),
+      this.db.select().from(auditEvents),
     ]);
     return {
       tenants: ts.map(rowToTenant),
@@ -214,6 +297,8 @@ export class PgWebStore implements WebStore {
       sessions: ss.map(rowToSession),
       content: cs.map(rowToContent),
       usage: rs.map(rowToUsage),
+      invites: ivs.map(rowToInvite),
+      auditEvents: aes.map(rowToAuditEvent),
     };
   }
 }
@@ -243,7 +328,29 @@ interface TenantRow {
   name: string;
   hosts: string[];
   plan: string;
+  preferredCMS: Tenant["preferredCMS"];
+  preferredAIService: Tenant["preferredAIService"];
   createdAt: string;
+}
+
+interface InviteRow {
+  id: string;
+  tenantId: string;
+  email: string;
+  role: UserRole;
+  tokenHash: string;
+  expiresAt: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+interface AuditEventRow {
+  id: string;
+  tenantId: string;
+  actorId: string;
+  action: string;
+  detail: string | null;
+  at: string;
 }
 
 interface UserRow {
@@ -299,7 +406,28 @@ function rowToTenant(row: TenantRow): Tenant {
     name: row.name,
     hosts: row.hosts,
     plan: row.plan,
+    preferredCMS: row.preferredCMS ?? "none",
+    preferredAIService: row.preferredAIService ?? "none",
     createdAt: row.createdAt,
+  };
+}
+
+function inviteToRow(invite: Invite): InviteRow {
+  return { ...invite };
+}
+
+function rowToInvite(row: InviteRow): Invite {
+  return { ...row };
+}
+
+function rowToAuditEvent(row: AuditEventRow): AuditEvent {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    actorId: row.actorId,
+    action: row.action,
+    detail: row.detail ?? undefined,
+    at: row.at,
   };
 }
 

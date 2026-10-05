@@ -37,7 +37,7 @@ export function dashboardHtml(): string {
 <main>
   <section class="panel">
     <h2>Reference flow</h2>
-    <p class="empty">POST /api/tenants {"name","host"} creates a white-label tenant + owner. Login with owner@&lt;host&gt; / change-me-now, then manage CMS content, record metered AI usage, and read the tenant-scoped admin overview. See docs/web-reference-architecture.</p>
+    <p class="empty">POST /api/tenants {"name","host"} creates a white-label tenant and returns a single-use owner invite token (no default password exists). Accept it via POST /api/invites/accept {"token","name","password"}, then manage CMS content, record metered AI usage, and read the tenant-scoped admin overview. See docs/web-reference-architecture.</p>
   </section>
   <section class="panel">
     <h2>Overview</h2>
@@ -102,8 +102,11 @@ export function dashboardHtml(): string {
     e.preventDefault();
     const fd = new FormData(e.target);
     const data = await api("/api/tenants", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: fd.get("name"), host: fd.get("host") }) });
-    const loginRes = await api("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tenantId: data.tenant.id, email: data.ownerEmail, password: "change-me-now" }) });
-    token = loginRes.token;
+    const name = prompt("Owner display name:", "Owner") || "Owner";
+    const password = prompt("Choose an owner password (min 8 chars):", "");
+    if (!password || password.length < 8) { alert("Password too short; tenant created but owner invite not yet accepted. Use POST /api/invites/accept with the invite token."); return; }
+    const acceptRes = await api("/api/invites/accept", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: data.inviteToken, name, password }) });
+    token = acceptRes.token;
     localStorage.setItem("token", token);
     e.target.reset();
     login();

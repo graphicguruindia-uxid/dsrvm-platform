@@ -72,7 +72,7 @@ async function build(providers: SsoProviderConfig[]) {
     now: NOW,
     ssoProviders: providers,
   });
-  const tenant = await service.bootstrap({
+  const { tenant } = await service.bootstrap({
     name: "Acme Consulting",
     host: "acme.dsrvm.app",
   });
@@ -259,7 +259,7 @@ describe("SSO service", () => {
         now: clock.now,
         ssoProviders: [oidcConfig()],
       });
-      const tenant = await service.bootstrap({
+      const { tenant } = await service.bootstrap({
         name: "Acme",
         host: "acme.dsrvm.app",
       });
@@ -397,7 +397,7 @@ describe("SSO service", () => {
         now: NOW,
         ssoProviders: [oidcConfig({ grant: "code", fetchFn: mock as never })],
       });
-      const tenant = await service.bootstrap({
+      const { tenant } = await service.bootstrap({
         name: "Acme",
         host: "acme.dsrvm.app",
       });
@@ -438,7 +438,7 @@ describe("SSO service", () => {
         now: NOW,
         ssoProviders: [oidcConfig({ grant: "code", fetchFn })],
       });
-      const tenant = await service.bootstrap({
+      const { tenant } = await service.bootstrap({
         name: "Acme",
         host: "acme.dsrvm.app",
       });

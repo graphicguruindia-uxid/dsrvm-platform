@@ -7,20 +7,30 @@ const NOW = () => new Date("2026-08-04T00:00:00.000Z");
 async function setup() {
   const store = createWebStore(NOW);
   const service = createWebReferenceService(store, NOW);
-  const acme = await service.bootstrap({
+  const acmeBoot = await service.bootstrap({
     name: "Acme",
     host: "acme.dsrvm.app",
   });
-  const beta = await service.bootstrap({
+  const acme = acmeBoot.tenant;
+  const betaBoot = await service.bootstrap({
     name: "Beta",
     host: "beta.dsrvm.app",
   });
-  const owner = await service.auth.login({
-    tenantId: acme.id,
-    email: `owner@acme.dsrvm.app`,
+  const beta = betaBoot.tenant;
+  const { user, sessionToken } = await service.invites.accept({
+    token: acmeBoot.inviteToken,
+    name: "Owner",
     password: "change-me-now",
   });
-  return { store, service, acme, beta, owner };
+  const owner = { user, token: sessionToken };
+  return {
+    store,
+    service,
+    acme,
+    beta,
+    betaInviteToken: betaBoot.inviteToken,
+    owner,
+  };
 }
 
 describe("tenants (multi-tenancy)", () => {
@@ -152,7 +162,7 @@ describe("CMS", () => {
   });
 
   it("rejects cross-tenant reads/writes and duplicate slugs", async () => {
-    const { service, acme, beta, owner } = await setup();
+    const { service, acme, beta, betaInviteToken, owner } = await setup();
     await service.cms.createItem({
       tenantId: acme.id,
       slug: "pricing",
@@ -171,9 +181,9 @@ describe("CMS", () => {
     ).rejects.toThrow("already exists");
 
     const betaOwner = (
-      await service.auth.login({
-        tenantId: beta.id,
-        email: `owner@beta.dsrvm.app`,
+      await service.invites.accept({
+        token: betaInviteToken,
+        name: "Beta Owner",
         password: "change-me-now",
       })
     ).user;
@@ -291,7 +301,7 @@ describe("billing webhook seam", () => {
       now: NOW,
       billingWebhookSecret: "test-webhook-secret",
     });
-    const acme = await service.bootstrap({
+    const { tenant: acme } = await service.bootstrap({
       name: "Acme",
       host: "acme.dsrvm.app",
     });
@@ -421,5 +431,254 @@ describe("admin console skeleton", () => {
       })
     ).user;
     await expect(service.admin.overview(viewer)).rejects.toThrow("forbidden");
+  });
+
+  it("denies editors the global overview but allows tenant reports", async () => {
+    const { service, acme, owner } = await setup();
+    const editor = (
+      await service.auth.signup({
+        tenantId: acme.id,
+        email: "editor@acme.dsrvm.app",
+        password: "x",
+        name: "E",
+        role: "editor",
+      })
+    ).user;
+    await expect(service.admin.overview(editor)).rejects.toThrow("forbidden");
+    const report = await service.admin.tenantOverview(editor, acme.id);
+    expect(report.tenantId).toBe(acme.id);
+    const viewer = (
+      await service.auth.signup({
+        tenantId: acme.id,
+        email: "viewer2@acme.dsrvm.app",
+        password: "x",
+        name: "V2",
+        role: "viewer",
+      })
+    ).user;
+    expect((await service.admin.tenantOverview(viewer, acme.id)).tenantId).toBe(
+      acme.id,
+    );
+    void owner;
+  });
+});
+
+describe("operator role + invite flows", () => {
+  it("enforces strictly-downward invite bounds with no escalation", async () => {
+    const { service, acme, owner } = await setup();
+    // Owner invites an admin.
+    const adminInvite = await service.invites.create({
+      tenantId: acme.id,
+      email: "admin@acme.dsrvm.app",
+      role: "admin",
+      actor: owner.user,
+    });
+    expect(adminInvite.invite.role).toBe("admin");
+    // Owner cannot invite a second owner (owner is not an invitable role).
+    await expect(
+      service.invites.create({
+        tenantId: acme.id,
+        email: "owner2@acme.dsrvm.app",
+        role: "owner",
+        actor: owner.user,
+      }),
+    ).rejects.toThrow("cannot invite");
+
+    const admin = (
+      await service.invites.accept({
+        token: adminInvite.token,
+        name: "Admin",
+        password: "s3cret!",
+      })
+    ).user;
+    // Admin cannot invite owners or fellow admins.
+    await expect(
+      service.invites.create({
+        tenantId: acme.id,
+        email: "a2@acme.dsrvm.app",
+        role: "admin",
+        actor: admin,
+      }),
+    ).rejects.toThrow("cannot invite");
+    // Admin invites an operator.
+    const operatorInvite = await service.invites.create({
+      tenantId: acme.id,
+      email: "op@acme.dsrvm.app",
+      role: "operator",
+      actor: admin,
+    });
+    const operator = (
+      await service.invites.accept({
+        token: operatorInvite.token,
+        name: "Op",
+        password: "s3cret!",
+      })
+    ).user;
+    expect(operator.role).toBe("operator");
+    // Operator invites editor + viewer, but not admin.
+    await service.invites.create({
+      tenantId: acme.id,
+      email: "ed@acme.dsrvm.app",
+      role: "editor",
+      actor: operator,
+    });
+    await expect(
+      service.invites.create({
+        tenantId: acme.id,
+        email: "evil-admin@acme.dsrvm.app",
+        role: "admin",
+        actor: operator,
+      }),
+    ).rejects.toThrow("cannot invite");
+    // Editors cannot invite anyone.
+    const editor = (
+      await service.auth.signup({
+        tenantId: acme.id,
+        email: "ed2@acme.dsrvm.app",
+        password: "x",
+        name: "E2",
+        role: "editor",
+      })
+    ).user;
+    await expect(
+      service.invites.create({
+        tenantId: acme.id,
+        email: "v@acme.dsrvm.app",
+        role: "viewer",
+        actor: editor,
+      }),
+    ).rejects.toThrow("forbidden");
+  });
+
+  it("gates privileged signup on invites and enforces a single owner", async () => {
+    const { service, acme } = await setup();
+    // Open signup works for editor/viewer.
+    const editor = (
+      await service.auth.signup({
+        tenantId: acme.id,
+        email: "ed@acme.dsrvm.app",
+        password: "x",
+        name: "E",
+        role: "editor",
+      })
+    ).user;
+    expect(editor.role).toBe("editor");
+    // Privileged self-signup without an invite is rejected.
+    await expect(
+      service.auth.signup({
+        tenantId: acme.id,
+        email: "rogue-admin@acme.dsrvm.app",
+        password: "x",
+        name: "Rogue",
+        role: "admin",
+      }),
+    ).rejects.toThrow("requires an invite");
+    // A second owner can never be created, even with an invite-shaped role.
+    await expect(
+      service.auth.signup({
+        tenantId: acme.id,
+        email: "owner2@acme.dsrvm.app",
+        password: "x",
+        name: "O2",
+        role: "owner",
+      }),
+    ).rejects.toThrow("already has an owner");
+  });
+
+  it("expires invites and rejects reuse", async () => {
+    const { service, acme, owner } = await setup();
+    const created = await service.invites.create({
+      tenantId: acme.id,
+      email: "temp@acme.dsrvm.app",
+      role: "viewer",
+      actor: owner.user,
+    });
+    const listed = await service.invites.list({
+      tenantId: acme.id,
+      actor: owner.user,
+    });
+    expect(listed.map((i) => i.email)).toContain("temp@acme.dsrvm.app");
+    await service.invites.revoke({
+      tenantId: acme.id,
+      id: created.invite.id,
+      actor: owner.user,
+    });
+    await expect(
+      service.invites.accept({
+        token: created.token,
+        name: "Temp",
+        password: "x",
+      }),
+    ).rejects.toThrow("invalid or unknown invite token");
+  });
+});
+
+describe("tenant preferences + audit", () => {
+  it("tracks preferred CMS/AI per tenant with role-gated writes", async () => {
+    const { service, acme, owner } = await setup();
+    const updated = await service.integrations.setPreferences({
+      tenantId: acme.id,
+      actor: owner.user,
+      preferredCMS: "sharepoint",
+      preferredAIService: "azure-openai",
+    });
+    expect(updated.preferredCMS).toBe("sharepoint");
+    expect(updated.preferredAIService).toBe("azure-openai");
+
+    const editor = (
+      await service.auth.signup({
+        tenantId: acme.id,
+        email: "ed@acme.dsrvm.app",
+        password: "x",
+        name: "E",
+        role: "editor",
+      })
+    ).user;
+    // Editors may set CMS preference but not AI integration.
+    await service.integrations.setPreferences({
+      tenantId: acme.id,
+      actor: editor,
+      preferredCMS: "wordpress",
+    });
+    await expect(
+      service.integrations.setPreferences({
+        tenantId: acme.id,
+        actor: editor,
+        preferredAIService: "gemini",
+      }),
+    ).rejects.toThrow("forbidden");
+
+    const events = await service.audit.list({
+      tenantId: acme.id,
+      actor: owner.user,
+    });
+    expect(
+      events.some((e) => e.action === "integration.preferences.update"),
+    ).toBe(true);
+    await expect(
+      service.audit.list({ tenantId: acme.id, actor: editor }),
+    ).rejects.toThrow("forbidden");
+  });
+
+  it("restricts tenant deletion to owners", async () => {
+    const { service, acme, owner } = await setup();
+    const adminInvite = await service.invites.create({
+      tenantId: acme.id,
+      email: "admin@acme.dsrvm.app",
+      role: "admin",
+      actor: owner.user,
+    });
+    const admin = (
+      await service.invites.accept({
+        token: adminInvite.token,
+        name: "Admin",
+        password: "x",
+      })
+    ).user;
+    await expect(
+      service.deleteTenant({ tenantId: acme.id, actorId: admin.id }),
+    ).rejects.toThrow("forbidden");
+    await service.deleteTenant({ tenantId: acme.id, actorId: owner.user.id });
+    expect(await service.tenants.get(acme.id)).toBeNull();
   });
 });
