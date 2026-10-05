@@ -245,6 +245,9 @@ importers:
       '@types/pg':
         specifier: ^8.20.3
         version: 8.20.3
+      drizzle-kit:
+        specifier: ^0.31.11
+        version: 0.31.11
       prettier:
         specifier: ^3.0.0
         version: 3.9.6
