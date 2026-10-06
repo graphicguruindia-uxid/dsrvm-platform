@@ -110,7 +110,35 @@ describe("rankCandidates", () => {
     expect(excluded[0]?.reason).toBe("pending_screening");
   });
 
-  it("breaks ties by earlier lastUpdated", () => {
+  it("breaks ties by earlier screenedAt even when updatedAt disagrees", () => {
+    const early = cand({
+      id: "early",
+      screening: {
+        score: 80,
+        screenedAt: "2026-08-01T00:00:00.000Z",
+      } as Candidate["screening"],
+      updatedAt: "2026-08-05T00:00:00.000Z",
+    });
+    const late = cand({
+      id: "late",
+      screening: {
+        score: 80,
+        screenedAt: "2026-08-04T00:00:00.000Z",
+      } as Candidate["screening"],
+      updatedAt: "2026-08-01T00:00:00.000Z",
+    });
+    const { ranked } = rankCandidates(role, [
+      { candidate: late, scorecardAverage: 80 },
+      { candidate: early, scorecardAverage: 80 },
+    ]);
+    expect(ranked).toHaveLength(2);
+    expect(ranked[0]?.candidateId).toBe("early");
+    expect(ranked[0]?.rank).toBe(1);
+    expect(ranked[1]?.candidateId).toBe("late");
+    expect(ranked[1]?.rank).toBe(2);
+  });
+
+  it("falls back to updatedAt for ties when screenedAt is missing", () => {
     const early = cand({
       id: "early",
       screening: { score: 80 } as Candidate["screening"],
@@ -127,9 +155,7 @@ describe("rankCandidates", () => {
     ]);
     expect(ranked).toHaveLength(2);
     expect(ranked[0]?.candidateId).toBe("early");
-    expect(ranked[0]?.rank).toBe(1);
     expect(ranked[1]?.candidateId).toBe("late");
-    expect(ranked[1]?.rank).toBe(2);
   });
 
   it("returns empty ranked and excluded for empty input", () => {

@@ -39,6 +39,7 @@ export function rankCandidates(
 ): { ranked: RankedCandidate[]; excluded: RankExclusion[] } {
   const ranked: RankedCandidate[] = [];
   const excluded: RankExclusion[] = [];
+  const screenedAtByRecord = new Map<RankedCandidate, string>();
   for (const { candidate, scorecardAverage } of entries) {
     if (candidate.dispute && !candidate.dispute.resolvedAt) {
       excluded.push(toExclusion(candidate, "disputed"));
@@ -58,7 +59,7 @@ export function rankCandidates(
       continue;
     }
     const { blended, breakdown } = blendScore(screening, scorecardAverage, weights);
-    ranked.push({
+    const record: RankedCandidate = {
       candidateId: candidate.id,
       name: candidate.name,
       email: candidate.email,
@@ -69,12 +70,18 @@ export function rankCandidates(
       rank: 0,
       blendedScore: blended,
       breakdown,
-    });
+    };
+    ranked.push(record);
+    screenedAtByRecord.set(
+      record,
+      candidate.screening?.screenedAt ?? candidate.updatedAt,
+    );
   }
   ranked.sort(
     (a, b) =>
       b.blendedScore - a.blendedScore ||
-      Date.parse(a.lastUpdated) - Date.parse(b.lastUpdated),
+      Date.parse(screenedAtByRecord.get(a) ?? a.lastUpdated) -
+        Date.parse(screenedAtByRecord.get(b) ?? b.lastUpdated),
   );
   ranked.forEach((r, i) => {
     r.rank = i + 1;
