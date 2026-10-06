@@ -488,7 +488,9 @@ async function main() {
         spec.openapi === "3.0.3" &&
         spec.info?.title?.includes("HR") &&
         spec.paths?.["/api/roles"] &&
-        spec.paths?.["/api/candidates"],
+        spec.paths?.["/api/candidates"] &&
+        spec.components?.schemas?.Candidate?.properties?.roleTitle?.type ===
+          "string",
       spec,
     );
 

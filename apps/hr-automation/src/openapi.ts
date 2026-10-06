@@ -935,6 +935,7 @@ export const HR_OPENAPI_SPEC = {
         properties: {
           id: { type: "string" },
           roleId: { type: "string" },
+          roleTitle: { type: "string" },
           name: { type: "string" },
           email: { type: "string" },
           resumeText: { type: "string" },
