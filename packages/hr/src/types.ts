@@ -281,10 +281,7 @@ export interface RankedCandidate extends CandidateComparison {
 }
 
 export type RankExclusionReason =
-  | "rejected"
-  | "unscreened"
-  | "disputed"
-  | "pending_screening";
+  "rejected" | "unscreened" | "disputed" | "pending_screening";
 
 export interface RankExclusion {
   candidateId: string;

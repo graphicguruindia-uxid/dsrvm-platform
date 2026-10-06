@@ -27,8 +27,7 @@ export function blendScore(
   const blended =
     scorecardAverage === null
       ? screening
-      : screening * weights.screening +
-        scorecardAverage * weights.scorecard;
+      : screening * weights.screening + scorecardAverage * weights.scorecard;
   return { blended: Math.round(blended * 10) / 10, breakdown };
 }
 
@@ -49,7 +48,10 @@ export function rankCandidates(
       excluded.push(toExclusion(candidate, "rejected"));
       continue;
     }
-    if (candidate.status !== "pending_review" && candidate.status !== "approved") {
+    if (
+      candidate.status !== "pending_review" &&
+      candidate.status !== "approved"
+    ) {
       excluded.push(toExclusion(candidate, "pending_screening"));
       continue;
     }
@@ -58,7 +60,11 @@ export function rankCandidates(
       excluded.push(toExclusion(candidate, "unscreened"));
       continue;
     }
-    const { blended, breakdown } = blendScore(screening, scorecardAverage, weights);
+    const { blended, breakdown } = blendScore(
+      screening,
+      scorecardAverage,
+      weights,
+    );
     const record: RankedCandidate = {
       candidateId: candidate.id,
       name: candidate.name,
