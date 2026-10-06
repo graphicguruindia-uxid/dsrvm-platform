@@ -12,6 +12,9 @@ coverage/
 # Tooling caches
 .turbo/
 
+# Git worktrees (SDD isolated workspaces)
+.worktrees/
+
 # Env & secrets
 .env
 .env.local
