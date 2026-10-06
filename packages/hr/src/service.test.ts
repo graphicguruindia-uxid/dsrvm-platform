@@ -1087,3 +1087,43 @@ describe("Compliance check", () => {
     expect(check.flags).toEqual(["No active policies configured"]);
   });
 });
+
+describe("rankRole", () => {
+  it("ranks screened candidates and excludes the rest", async () => {
+    const { service } = buildService();
+    const role = await service.createRole({
+      title: "Engineer",
+      requirements: ["TypeScript"],
+    });
+    const mk = (name: string) =>
+      service.createCandidate({
+        roleId: role.id,
+        name,
+        email: `${name}@x.io`,
+        resumeText: "TypeScript expert",
+        autoScreen: false,
+      });
+    const a = await mk("a");
+    const b = await mk("b");
+    const c = await mk("c");
+    await service.screenCandidate(a.id);
+    await service.screenCandidate(b.id);
+    // c stays pending_screening → excluded
+    const rank = await service.rankRole(role.id);
+    expect(rank.roleTitle).toBe("Engineer");
+    expect(rank.ranked.map((r) => r.candidateId).sort()).toEqual(
+      [a.id, b.id].sort(),
+    );
+    expect(rank.excluded.map((e) => e.candidateId)).toEqual([c.id]);
+    expect(rank.ranked[0]!.blendedScore).toBeGreaterThanOrEqual(
+      rank.ranked[1]!.blendedScore,
+    );
+  });
+
+  it("throws not found for unknown roles", async () => {
+    const { service } = buildService();
+    await expect(service.rankRole("missing")).rejects.toThrow(
+      'role "missing" not found',
+    );
+  });
+});

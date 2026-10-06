@@ -30,9 +30,13 @@ import type {
   UpdateScorecardInput,
   UpdateTenantSettingsInput,
   UpdateUserAccessInput,
+  RankWeights,
+  RoleRank,
   UserAccess,
   UserRole,
 } from "./types.js";
+import { DEFAULT_RANK_WEIGHTS } from "./types.js";
+import { rankCandidates } from "./ranking.js";
 import type { ScreeningEngine } from "./screening.js";
 import type { Store } from "./store.js";
 import { candidateAiNotice } from "./notice.js";
@@ -950,6 +954,31 @@ export class HrService {
     if (!scorecards.length) return null;
     const allScores = scorecards.map((s) => s.overallScore);
     return allScores.reduce((a, b) => a + b, 0) / allScores.length;
+  }
+
+  async rankRole(roleId: string, weights?: RankWeights): Promise<RoleRank> {
+    const role = await this.store.roles.get(roleId, this.tid);
+    if (!role) {
+      throw new Error(`role "${roleId}" not found`);
+    }
+    const all = await this.store.candidates.list(this.tid);
+    const mine = all.filter((c) => c.roleId === roleId);
+    const entries = [];
+    for (const candidate of mine) {
+      entries.push({
+        candidate,
+        scorecardAverage: await this.getOverallScore(candidate.id),
+      });
+    }
+    const { ranked, excluded } = rankCandidates(role, entries, weights);
+    return {
+      roleId: role.id,
+      roleTitle: role.title,
+      weights: weights ?? DEFAULT_RANK_WEIGHTS,
+      ranked,
+      excluded,
+      generatedAt: this.now().toISOString(),
+    };
   }
 
   async getCapacityMetrics(): Promise<CapacityMetrics> {
