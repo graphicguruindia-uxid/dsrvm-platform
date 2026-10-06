@@ -257,6 +257,52 @@ export interface CandidateComparison {
   lastUpdated: string;
 }
 
+export interface RankWeights {
+  screening: number;
+  scorecard: number;
+}
+
+export const DEFAULT_RANK_WEIGHTS: RankWeights = {
+  screening: 0.7,
+  scorecard: 0.3,
+};
+
+export interface RankBreakdown {
+  screening: number;
+  scorecard: number | null;
+  weights: RankWeights;
+  unscored: boolean;
+}
+
+export interface RankedCandidate extends CandidateComparison {
+  rank: number;
+  blendedScore: number;
+  breakdown: RankBreakdown;
+}
+
+export type RankExclusionReason =
+  | "rejected"
+  | "unscreened"
+  | "disputed"
+  | "pending_screening";
+
+export interface RankExclusion {
+  candidateId: string;
+  name: string;
+  email: string;
+  status: CandidateStatus;
+  reason: RankExclusionReason;
+}
+
+export interface RoleRank {
+  roleId: string;
+  roleTitle: string;
+  weights: RankWeights;
+  ranked: RankedCandidate[];
+  excluded: RankExclusion[];
+  generatedAt: string;
+}
+
 export interface CapacityMetrics {
   roles: {
     id: string;
