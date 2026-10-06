@@ -80,7 +80,7 @@ async function main() {
 
   console.log("=== HR automation app (apps/hr-automation) ===");
   {
-    const app = createReviewerApp({ provider: "demo" });
+    const app = await createReviewerApp({ provider: "demo" });
     const { server } = app;
     const health = await call(server, { method: "GET", url: "/health" });
     check(
@@ -415,7 +415,10 @@ async function main() {
 
   console.log("=== HR auth gate (T28) ===");
   {
-    const app = createReviewerApp({ provider: "demo", apiToken: "smoke-token-123" });
+    const app = await createReviewerApp({
+      provider: "demo",
+      apiToken: "smoke-token-123",
+    });
     const { server } = app;
 
     const healthNoAuth = await call(server, { method: "GET", url: "/health" });
@@ -950,6 +953,226 @@ async function main() {
       "GET /api/auth/sso/google/callback (bad id_token) -> 401",
       ssoCallback.statusCode === 401,
       ssoCallback.json(),
+    );
+
+    const rogueSignup = await call(server, {
+      method: "POST",
+      url: "/api/auth/signup",
+      payload: {
+        tenantId,
+        email: "rogue@acme.dsrvm.app",
+        password: "rogue-pass-1",
+        name: "Rogue",
+        role: "admin",
+      },
+    });
+    check(
+      "POST /api/auth/signup (admin, no invite) -> 403",
+      rogueSignup.statusCode === 403,
+      rogueSignup.json(),
+    );
+
+    const inviteOp = await call(server, {
+      method: "POST",
+      url: "/api/invites",
+      headers: { authorization: auth },
+      payload: { email: "op@acme.dsrvm.app", role: "operator" },
+    });
+    check(
+      "POST /api/invites (owner invites operator) -> 201 token",
+      inviteOp.statusCode === 201 && !!inviteOp.json().token,
+      inviteOp.json(),
+    );
+
+    const inviteOwnerDup = await call(server, {
+      method: "POST",
+      url: "/api/invites",
+      headers: { authorization: auth },
+      payload: { email: "owner2@acme.dsrvm.app", role: "owner" },
+    });
+    check(
+      "POST /api/invites (second owner) -> 403/409",
+      inviteOwnerDup.statusCode === 403 || inviteOwnerDup.statusCode === 409,
+      inviteOwnerDup.json(),
+    );
+
+    const acceptOp = await call(server, {
+      method: "POST",
+      url: "/api/invites/accept",
+      payload: {
+        token: inviteOp.json().token,
+        name: "Op",
+        password: "op-pass-1",
+      },
+    });
+    check(
+      "POST /api/invites/accept (operator) -> 201 token",
+      acceptOp.statusCode === 201 && !!acceptOp.json().token,
+      acceptOp.json(),
+    );
+    const opAuth = `Bearer ${acceptOp.json().token as string}`;
+
+    const opEscalate = await call(server, {
+      method: "POST",
+      url: "/api/invites",
+      headers: { authorization: opAuth },
+      payload: { email: "evil@acme.dsrvm.app", role: "admin" },
+    });
+    check(
+      "POST /api/invites (operator invites admin) -> 403 no escalation",
+      opEscalate.statusCode === 403,
+      opEscalate.json(),
+    );
+
+    const opInviteEditor = await call(server, {
+      method: "POST",
+      url: "/api/invites",
+      headers: { authorization: opAuth },
+      payload: { email: "ed@acme.dsrvm.app", role: "editor" },
+    });
+    check(
+      "POST /api/invites (operator invites editor) -> 201",
+      opInviteEditor.statusCode === 201,
+      opInviteEditor.json(),
+    );
+
+    const inviteList = await call(server, {
+      method: "GET",
+      url: "/api/invites",
+      headers: { authorization: auth },
+    });
+    check(
+      "GET /api/invites (owner) -> lists pending editor invite",
+      inviteList.statusCode === 200 &&
+        inviteList
+          .json()
+          .invites.some(
+            (i: { email: string }) => i.email === "ed@acme.dsrvm.app",
+          ),
+      inviteList.json(),
+    );
+
+    const revoke = await call(server, {
+      method: "DELETE",
+      url: `/api/invites/${opInviteEditor.json().invite?.id}`,
+      headers: { authorization: auth },
+    });
+    check(
+      "DELETE /api/invites/:id (revoke) -> 200 ok",
+      revoke.statusCode === 200 && revoke.json().ok === true,
+      revoke.json(),
+    );
+
+    const prefs = await call(server, {
+      method: "PATCH",
+      url: "/api/tenants/preferences",
+      headers: { authorization: auth },
+      payload: { preferredCMS: "wordpress", preferredAIService: "gemini" },
+    });
+    check(
+      "PATCH /api/tenants/preferences (owner) -> 200 wordpress/gemini",
+      prefs.statusCode === 200 &&
+        prefs.json().tenant?.preferredCMS === "wordpress" &&
+        prefs.json().tenant?.preferredAIService === "gemini",
+      prefs.json(),
+    );
+
+    const prefsEditorDenied = await call(server, {
+      method: "PATCH",
+      url: "/api/tenants/preferences",
+      headers: { authorization: `Bearer ${viewerSessionToken}` },
+      payload: { preferredCMS: "sharepoint" },
+    });
+    check(
+      "PATCH /api/tenants/preferences (viewer) -> 403",
+      prefsEditorDenied.statusCode === 403,
+      prefsEditorDenied.json(),
+    );
+
+    const registry = await call(server, {
+      method: "GET",
+      url: "/api/integrations/registry",
+      headers: { authorization: auth },
+    });
+    check(
+      "GET /api/integrations/registry -> cms+ai registries",
+      registry.statusCode === 200 &&
+        !!registry.json().cms?.wordpress &&
+        !!registry.json().ai?.gemini,
+      Object.keys(registry.json()),
+    );
+
+    const resolved = await call(server, {
+      method: "GET",
+      url: "/api/integrations/resolved",
+      headers: { authorization: auth },
+    });
+    check(
+      "GET /api/integrations/resolved -> wordpress, no secrets leaked",
+      resolved.statusCode === 200 &&
+        resolved.json().preferredCMS === "wordpress" &&
+        !JSON.stringify(resolved.json()).includes("CMS_API_TOKEN"),
+      resolved.json(),
+    );
+
+    const audit = await call(server, {
+      method: "GET",
+      url: "/api/audit",
+      headers: { authorization: opAuth },
+    });
+    check(
+      "GET /api/audit (operator read) -> has invite events",
+      audit.statusCode === 200 &&
+        audit
+          .json()
+          .events.some(
+            (e: { action: string }) => e.action === "invite.create",
+          ),
+      { count: audit.json().events?.length },
+    );
+
+    const auditViewerDenied = await call(server, {
+      method: "GET",
+      url: "/api/audit",
+      headers: { authorization: `Bearer ${viewerSessionToken}` },
+    });
+    check(
+      "GET /api/audit (viewer) -> 403",
+      auditViewerDenied.statusCode === 403,
+      auditViewerDenied.json(),
+    );
+
+    const reports = await call(server, {
+      method: "GET",
+      url: "/api/reports/overview",
+      headers: { authorization: `Bearer ${viewerSessionToken}` },
+    });
+    check(
+      "GET /api/reports/overview (viewer, own tenant) -> 200",
+      reports.statusCode === 200 && reports.json().tenantId === tenantId,
+      reports.json(),
+    );
+
+    const opGlobalDenied = await call(server, {
+      method: "GET",
+      url: "/api/admin/overview",
+      headers: { authorization: opAuth },
+    });
+    check(
+      "GET /api/admin/overview (operator) -> 403 no cross-tenant leak",
+      opGlobalDenied.statusCode === 403,
+      opGlobalDenied.json(),
+    );
+
+    const deleteDenied = await call(server, {
+      method: "DELETE",
+      url: "/api/tenants",
+      headers: { authorization: opAuth },
+    });
+    check(
+      "DELETE /api/tenants (operator) -> 403 owner only",
+      deleteDenied.statusCode === 403,
+      deleteDenied.json(),
     );
 
     await app.close();

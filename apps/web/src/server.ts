@@ -107,6 +107,11 @@ export function buildWebReferenceServer(
     if (!email || !role) {
       return reply.code(400).send({ error: "email and role are required" });
     }
+    if (role === "owner") {
+      return reply.code(403).send({
+        error: "owner role is never invitable (single owner per tenant)",
+      });
+    }
     if (!["admin", "operator", "editor", "viewer"].includes(role)) {
       return reply.code(400).send({ error: `cannot invite role "${role}"` });
     }
