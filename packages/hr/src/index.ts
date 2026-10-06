@@ -7,6 +7,7 @@ export * from "./outbox.js";
 export * from "./retention.js";
 export * from "./bias-cohorts.js";
 export * from "./bias-gate.js";
+export * from "./ranking.js";
 export * from "./ingest/index.js";
 export * from "./db/schema.js";
 export * from "./db/pg-store.js";
