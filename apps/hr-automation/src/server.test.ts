@@ -641,6 +641,42 @@ describe("reviewer server", () => {
     });
     await app.close();
   });
+
+  it("ranks candidates for a role", async () => {
+    const app = await build();
+    const roleRes = await app.server.inject({
+      method: "POST",
+      url: "/api/roles",
+      payload: { title: "Engineer", requirements: ["TypeScript"] },
+    });
+    expect(roleRes.statusCode).toBe(201);
+    const role = roleRes.json().role;
+    const candidateRes = await app.server.inject({
+      method: "POST",
+      url: "/api/candidates",
+      payload: {
+        roleId: role.id,
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+        resumeText: "TypeScript expert",
+      },
+    });
+    expect(candidateRes.statusCode).toBe(201);
+    const res = await app.server.inject({
+      method: "GET",
+      url: `/api/roles/${role.id}/rank`,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().roleTitle).toBe("Engineer");
+    expect(res.json().ranked).toHaveLength(1);
+
+    const missing = await app.server.inject({
+      method: "GET",
+      url: "/api/roles/missing/rank",
+    });
+    expect(missing.statusCode).toBe(404);
+    await app.close();
+  });
 });
 
 describe("tenant settings, user access, policies, compliance", () => {

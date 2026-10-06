@@ -540,6 +540,20 @@ export async function buildReviewerServer(
 
   server.get("/api/roles", async () => ({ roles: await hr.listRoles() }));
 
+  server.get<{ Params: { id: string } }>(
+    "/api/roles/:id/rank",
+    async (request, reply) => {
+      try {
+        return await hr.rankRole(request.params.id);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return reply.code(404).send({ error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
   server.post<{
     Body: {
       title?: string;
