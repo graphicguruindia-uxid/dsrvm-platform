@@ -108,6 +108,31 @@ export const HR_OPENAPI_SPEC = {
         },
       },
     },
+    "/api/roles/{id}/rank": {
+      get: {
+        operationId: "rankRole",
+        summary: "Rank candidates for a role (deterministic blend)",
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string" },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Ranked candidates with exclusions",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/RoleRank" },
+              },
+            },
+          },
+          "404": { description: "Role not found" },
+        },
+      },
+    },
     "/api/scorecards/{id}": {
       patch: {
         operationId: "updateScorecard",
@@ -873,6 +898,87 @@ export const HR_OPENAPI_SPEC = {
           budgetMin: { type: "number", minimum: 0 },
           budgetMax: { type: "number", minimum: 0 },
           budgetCurrency: { type: "string" },
+        },
+      },
+      RankWeights: {
+        type: "object",
+        required: ["screening", "scorecard"],
+        properties: {
+          screening: { type: "number" },
+          scorecard: { type: "number" },
+        },
+      },
+      RankBreakdown: {
+        type: "object",
+        required: ["screening", "weights", "unscored"],
+        properties: {
+          screening: { type: "number" },
+          scorecard: { oneOf: [{ type: "number" }, { type: "null" }] },
+          weights: { $ref: "#/components/schemas/RankWeights" },
+          unscored: { type: "boolean" },
+        },
+      },
+      RankedCandidate: {
+        type: "object",
+        required: [
+          "candidateId",
+          "name",
+          "email",
+          "status",
+          "rank",
+          "blendedScore",
+          "breakdown",
+        ],
+        properties: {
+          candidateId: { type: "string" },
+          name: { type: "string" },
+          email: { type: "string" },
+          status: { type: "string" },
+          screeningScore: { type: "number" },
+          overallScore: { type: "number" },
+          lastUpdated: { type: "string" },
+          rank: { type: "integer" },
+          blendedScore: { type: "number" },
+          breakdown: { $ref: "#/components/schemas/RankBreakdown" },
+        },
+      },
+      RankExclusion: {
+        type: "object",
+        required: ["candidateId", "name", "email", "status", "reason"],
+        properties: {
+          candidateId: { type: "string" },
+          name: { type: "string" },
+          email: { type: "string" },
+          status: { type: "string" },
+          reason: {
+            type: "string",
+            enum: ["rejected", "unscreened", "disputed", "pending_screening"],
+          },
+        },
+      },
+      RoleRank: {
+        type: "object",
+        required: [
+          "roleId",
+          "roleTitle",
+          "weights",
+          "ranked",
+          "excluded",
+          "generatedAt",
+        ],
+        properties: {
+          roleId: { type: "string" },
+          roleTitle: { type: "string" },
+          weights: { $ref: "#/components/schemas/RankWeights" },
+          ranked: {
+            type: "array",
+            items: { $ref: "#/components/schemas/RankedCandidate" },
+          },
+          excluded: {
+            type: "array",
+            items: { $ref: "#/components/schemas/RankExclusion" },
+          },
+          generatedAt: { type: "string" },
         },
       },
       Scorecard: {

@@ -546,7 +546,10 @@ export async function buildReviewerServer(
       try {
         return await hr.rankRole(request.params.id);
       } catch (error) {
-        if (error instanceof Error && error.message.includes("not found")) {
+        if (
+          error instanceof Error &&
+          /^role ".*" not found/.test(error.message)
+        ) {
           return reply.code(404).send({ error: error.message });
         }
         throw error;

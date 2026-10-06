@@ -13,6 +13,15 @@ export interface RankEntry {
   scorecardAverage: number | null;
 }
 
+// Scale contract: screening scores are 0–100, but production scorecard
+// averages (`HrService.getOverallScore`) are 1–5 averages (domain validation
+// in `service.ts validateScorecardAnswers` enforces 1–5 answers). Normalize
+// 1–5 averages ×20 into the 0–100 blend space; averages >5 pass through
+// untouched (legacy 0–100 test/fixture values).
+export function normalizeScorecardTo100(average: number): number {
+  return average <= 5 ? average * 20 : average;
+}
+
 export function blendScore(
   screening: number,
   scorecardAverage: number | null,
@@ -27,7 +36,8 @@ export function blendScore(
   const blended =
     scorecardAverage === null
       ? screening
-      : screening * weights.screening + scorecardAverage * weights.scorecard;
+      : screening * weights.screening +
+        normalizeScorecardTo100(scorecardAverage) * weights.scorecard;
   return { blended: Math.round(blended * 10) / 10, breakdown };
 }
 

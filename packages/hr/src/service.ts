@@ -37,6 +37,7 @@ import type {
 } from "./types.js";
 import { DEFAULT_RANK_WEIGHTS } from "./types.js";
 import { rankCandidates } from "./ranking.js";
+import type { RankEntry } from "./ranking.js";
 import type { ScreeningEngine } from "./screening.js";
 import type { Store } from "./store.js";
 import { candidateAiNotice } from "./notice.js";
@@ -963,7 +964,7 @@ export class HrService {
     }
     const all = await this.store.candidates.list(this.tid);
     const mine = all.filter((c) => c.roleId === roleId);
-    const entries = [];
+    const entries: RankEntry[] = [];
     for (const candidate of mine) {
       entries.push({
         candidate,

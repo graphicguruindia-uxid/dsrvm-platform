@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rankCandidates } from "./ranking.js";
+import { normalizeScorecardTo100, rankCandidates } from "./ranking.js";
 import type { Candidate, RoleProfile } from "./types.js";
 
 const role = { id: "r1", title: "Engineer" } as RoleProfile;
@@ -162,5 +162,40 @@ describe("rankCandidates", () => {
     const { ranked, excluded } = rankCandidates(role, []);
     expect(ranked).toEqual([]);
     expect(excluded).toEqual([]);
+  });
+
+  it("normalizes 1–5 scorecard averages ×20 before blending", () => {
+    const a = cand({
+      id: "a",
+      screening: { score: 80 } as Candidate["screening"],
+    });
+    const { ranked } = rankCandidates(role, [
+      { candidate: a, scorecardAverage: 4 },
+    ]);
+    // 4 on the 1–5 scale → 80 on the 0–100 blend scale.
+    expect(ranked[0]?.blendedScore).toBeCloseTo(0.7 * 80 + 0.3 * 80, 1);
+    expect(ranked[0]?.blendedScore).toBe(80);
+  });
+
+  it("blends a perfect 1–5 scorecard above an unscored screening", () => {
+    const a = cand({
+      id: "a",
+      screening: { score: 80 } as Candidate["screening"],
+    });
+    const { ranked } = rankCandidates(role, [
+      { candidate: a, scorecardAverage: 5 },
+    ]);
+    // 5 on the 1–5 scale → 100 on the 0–100 blend scale.
+    expect(ranked[0]?.blendedScore).toBe(86);
+  });
+
+  it("passes 0–100 scorecard averages through untouched", () => {
+    expect(normalizeScorecardTo100(100)).toBe(100);
+    expect(normalizeScorecardTo100(80)).toBe(80);
+  });
+
+  it("normalizes at the 1–5 boundary and passes through above it", () => {
+    expect(normalizeScorecardTo100(5)).toBe(100);
+    expect(normalizeScorecardTo100(5.1)).toBe(5.1);
   });
 });
