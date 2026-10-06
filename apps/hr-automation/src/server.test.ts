@@ -677,6 +677,44 @@ describe("reviewer server", () => {
     expect(missing.statusCode).toBe(404);
     await app.close();
   });
+
+  it("includes roleTitle on candidate list and single payloads", async () => {
+    const app = await build();
+    const roleRes = await app.server.inject({
+      method: "POST",
+      url: "/api/roles",
+      payload: { title: "Engineer", requirements: ["TypeScript"] },
+    });
+    expect(roleRes.statusCode).toBe(201);
+    const role = roleRes.json().role;
+    const candidateRes = await app.server.inject({
+      method: "POST",
+      url: "/api/candidates",
+      payload: {
+        roleId: role.id,
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+        resumeText: "TypeScript expert",
+      },
+    });
+    expect(candidateRes.statusCode).toBe(201);
+    const candidateId = candidateRes.json().candidate.id;
+
+    const list = await app.server.inject({
+      method: "GET",
+      url: "/api/candidates",
+    });
+    expect(list.statusCode).toBe(200);
+    expect(list.json().candidates[0]).toMatchObject({ roleTitle: "Engineer" });
+
+    const single = await app.server.inject({
+      method: "GET",
+      url: `/api/candidates/${candidateId}`,
+    });
+    expect(single.statusCode).toBe(200);
+    expect(single.json().candidate).toMatchObject({ roleTitle: "Engineer" });
+    await app.close();
+  });
 });
 
 describe("tenant settings, user access, policies, compliance", () => {

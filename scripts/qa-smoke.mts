@@ -193,13 +193,15 @@ async function main() {
     );
 
     const list = await call(server, { method: "GET", url: "/api/candidates" });
+    const listJson = list.json();
     check(
-      "GET /api/candidates -> contains candidate",
+      "GET /api/candidates -> contains candidate with roleTitle",
       list.statusCode === 200 &&
-        list
-          .json()
-          .candidates.some((c: { id: string }) => c.id === candidateId),
-      list.json(),
+        listJson.candidates.some(
+          (c: { id: string; roleTitle?: string }) =>
+            c.id === candidateId && c.roleTitle === "QA Engineer",
+        ),
+      listJson,
     );
 
     const get = await call(server, {
@@ -210,6 +212,16 @@ async function main() {
       "GET /api/candidates/:id -> 200",
       get.statusCode === 200 && get.json().candidate?.id === candidateId,
       get.json(),
+    );
+
+    const rank = await call(server, {
+      method: "GET",
+      url: `/api/roles/${roleId}/rank`,
+    });
+    check(
+      "GET /api/roles/:id/rank -> 200 ranked",
+      rank.statusCode === 200 && rank.json().ranked.length >= 1,
+      rank.json(),
     );
 
     const review = await call(server, {

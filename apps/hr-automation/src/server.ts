@@ -694,6 +694,13 @@ export async function buildReviewerServer(
     const statusFilter = request.query.status;
     const q = request.query.q?.trim().toLowerCase();
     let candidates = await hr.listCandidates();
+    const roles = await hr.listRoles();
+    const titles = new Map(roles.map((r) => [r.id, r.title]));
+    const withTitles = (list: typeof candidates) =>
+      list.map((c) => ({
+        ...c,
+        roleTitle: titles.get(c.roleId) ?? c.roleId,
+      }));
     if (statusFilter) {
       candidates = candidates.filter((c) => c.status === statusFilter);
     }
@@ -719,7 +726,7 @@ export async function buildReviewerServer(
       );
       page = candidates.slice(offset, offset + limit);
     }
-    return { candidates: page, total };
+    return { candidates: withTitles(page), total };
   });
 
   server.post<{ Body: { text?: string } }>(
@@ -958,7 +965,14 @@ export async function buildReviewerServer(
       if (!candidate) {
         return reply.code(404).send({ error: "candidate not found" });
       }
-      return { candidate };
+      const roles = await hr.listRoles();
+      const titles = new Map(roles.map((r) => [r.id, r.title]));
+      return {
+        candidate: {
+          ...candidate,
+          roleTitle: titles.get(candidate.roleId) ?? candidate.roleId,
+        },
+      };
     },
   );
 
