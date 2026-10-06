@@ -84,14 +84,48 @@ New module `packages/hr/src/ranking.ts` — pure functions, no LLM.
   hr drizzle runner (new migration file), in-memory store parity, pg-store
   mappers. Audit events for queued/sent/failed/released.
 
-## 6. Explicitly out of scope (follow-ups)
+## 6. Additional approved scope (2026-10-06 review)
+
+### 6a. AI-generated document detection
+
+Uploaded resumes/documents carry no provenance signal today (`ingest/resume.ts`
+is deterministic text extraction + PII detection only). New
+`packages/hr/src/ai-detection.ts`: an LLM classifier over the existing
+gateway using structured output (`{ aiLikelihood: 0-100, signals: string[] }`)
+via a versioned `ai-detection` prompt in `PromptRegistry`.
+
+- Runs at ingest/screening time alongside PII detection; result stored on the
+  candidate enrichment record, surfaced as a flag in ranking breakdowns and
+  the ATS scorecard panel (§6b).
+- **Flag only, never auto-reject**: a high likelihood score routes to
+  `needs_review` with the signals attached; it must not change a
+  recommendation on its own. Human decides, per the AI-notice posture.
+- Audit-logged (`candidate.ai_screen` action) with model + prompt version;
+  telemetry-tracked like comparison runs.
+
+### 6b. ATS scorecard in Candidate view and Compare view
+
+- **Candidate detail view** gains an "ATS Scorecard" panel: screening score +
+  recommendation + strengths/flags, blended rank position (once §2 ships),
+  scorecard-average from reviewers, and the AI-detection flag (§6a).
+- **Compare view** switches from client-side screening-score sort to the
+  server `GET /api/roles/:id/rank` feed (§2), adding per-candidate columns
+  for rank, blended score, scorecard average, recommendation, and AI-detection
+  flag. LLM rationales (§3) render inline when a comparison run exists.
+- **Role title, not role ID**: resolve every rendered role reference through
+  the existing role map with title display and ID fallback
+  (`dashboard.ts` currently renders bare `roleId` in at least two views).
+  Candidate API payloads include `roleTitle` alongside `roleId` so views never
+  resolve IDs client-side.
+
+## 7. Explicitly out of scope (follow-ups)
 
 - Calendar integration and full interview scheduling.
 - ATS/CRM write-back (separate connector workstream).
 - Bias-gate metric extensions for comparison outputs.
 - Recruiter review/draft UX (deferred until compliance requires it).
 
-## 7. Verification plan
+## 8. Verification plan
 
 - Deterministic ranking: fixture unit tests (blends, flags, exclusions, ties).
 - LLM compare: fake-provider tests (cap, guards, audit event, rationale shape).
@@ -100,5 +134,8 @@ New module `packages/hr/src/ranking.ts` — pure functions, no LLM.
 - Transport: stub-transport dispatch tests (retry/release/audit); nodemailer
   SMTP impl covered by construction tests, no live server in CI.
 - HTTP: fastify.inject tests per new route incl. 403/404/409 paths.
+- AI detection: fake-provider classification tests (flag-only, no
+  recommendation change, audit event); dashboard: scorecard panel render,
+  compare-view server feed, role-title resolution with ID fallback.
 - Gates: `pnpm build`, `typecheck`, `lint`, `test`, `qa:smoke` extended with
   rank/compare/invite/send checks.
